@@ -3414,7 +3414,15 @@ function qcPlatformRadioChanged() {
     elA('obOtaSummary').classList.toggle('hidden',direct);
     elA('guestEmailCard').classList.toggle('hidden',!direct);
     const af=elA('chargeAmendFee2'), nbA=elA('nbAmend');
-    if(af){af.disabled=!direct; elA('amendFeeLabel')?.classList.toggle('disabled-soft',!direct);}
+    if(af){
+      af.disabled=!direct;
+      // Auto-check when Bachcare Direct, uncheck and grey out for other platforms
+      if(direct){ af.checked=true; }
+      else { af.checked=false; }
+      elA('amendFeeLabel')?.classList.toggle('disabled-soft',!direct);
+      // Grey out the label visually for non-Bachcare platforms
+      if(elA('amendFeeLabel')) elA('amendFeeLabel').style.opacity = direct ? '1' : '0.4';
+    }
     if(nbA) nbA.textContent=direct?'$0.00':'N/A';
     // Always sync linen/clean editability when platform changes
     adjMirrorLinenCleaning(direct);
