@@ -2743,7 +2743,7 @@ function qcPlatformRadioChanged() {
     const discountC=discountApplied?Math.round(rentBeforeC*(discountPct/100)):0;
     const rentUsedC=Math.max(0,rentBeforeC-discountC);
     const gstC=Math.round(rentUsedC*0.15), gelC=nights*1200;
-    const feeRawC=Math.round((rentUsedC+gstC)*0.071), feeCapC=29900*Math.max(1,bc), feeC=Math.min(feeRawC,feeCapC);
+    const feeRawC=Math.round((rentUsedC+gstC)*0.071), feeCapC=29900*Math.max(1,bc), feeC=Math.max(4000, Math.min(feeRawC,feeCapC));
     const markupBaseC=Math.round((rentUsedC*1.15)+gelC+feeC), markupC=Math.round(markupBaseC*(p.markup||0));
     const linenEachC=qcCents($q('qc_linenEach').value), cleanEachC=qcCents($q('qc_cleanEach').value);
     const linenCount=parseInt($q('qc_linenCount').value||'0',10)||0, cleanCount=parseInt($q('qc_cleanCount').value||'0',10)||0;
@@ -3546,6 +3546,8 @@ function qcPlatformRadioChanged() {
   }
 
   function compute(rebuildDates=true){
+    // Guard: exit if the tool isn't in the DOM yet
+    if(!elA('origStart') || !elA('rent1')) return;
     const os=adjGetDate('origStart'),oe=adjGetDate('origEnd'),ns=adjGetDate('newStart'),ne=adjGetDate('newEnd');
     const origN=(os&&oe)?adjNights(os,oe):0, newN=(ns&&ne)?adjNights(ns,ne):0;
     elA('origNights').textContent=origN; elA('newNights').textContent=newN;
@@ -3595,12 +3597,12 @@ function qcPlatformRadioChanged() {
       if(key!==adjLastNightlyKey){adjBuildNightly(nightlyStart,nightlyEnd,nightlySkipStart,nightlySkipEnd);adjLastNightlyKey=key;}
     }
     adjSetExtFields(isExt);
-    const b1={rent:adjToCents(elA('rent1').value),linen:adjToCents(elA('linen1').value),clean:adjToCents(elA('clean1').value),fee:adjToCents(elA('fee1').value),addInfo:(elA('addInfo1').value||'').trim(),addAmt:adjToCents(elA('addAmt1').value)};
+    const b1={rent:adjToCents(elA('rent1')?.value||'0'),linen:adjToCents(elA('linen1')?.value||'0'),clean:adjToCents(elA('clean1')?.value||'0'),fee:adjToCents(elA('fee1')?.value||'0'),addInfo:(elA('addInfo1')?.value||'').trim(),addAmt:adjToCents(elA('addAmt1')?.value||'0')};
     adjMirrorLinenCleaning(direct);
     let rent2=adjSumNightly();
     if(direct&&isRon){
       adjToggleNightlyBlock(false); elA('nightlyGrid').innerHTML='';
-      const origRentInclC=adjToCents(elA('rent1').value), origGelC=origN*GEL_C;
+      const origRentInclC=adjToCents(elA('rent1')?.value||'0'), origGelC=origN*GEL_C;
       const rentPlusGstC=Math.max(0,origRentInclC-origGelC);
       const rentExGstC=origN>0?Math.round(rentPlusGstC/(1+ownerGSTRate)):0;
       rent2=Math.round((origN>0?(rentExGstC/origN):0)*newN);
@@ -3609,7 +3611,7 @@ function qcPlatformRadioChanged() {
     const gel2=gel2Nights*GEL_C;
     const rent2GstC=Math.round(rent2*ownerGSTRate);
     const fee2Raw=Math.round((rent2+rent2GstC)*bookingFeeRate), fee2=Math.min(fee2Raw,FEE_CAP_C);
-    const b2={rent:rent2,linen:direct?b1.linen:adjToCents(elA('linen2').value),clean:direct?b1.clean:adjToCents(elA('clean2').value),fee:fee2,addInfo:(elA('addInfo2').value||'').trim(),addAmt:adjToCents(elA('addAmt2').value)};
+    const b2={rent:rent2,linen:direct?b1.linen:adjToCents(elA('linen2')?.value||'0'),clean:direct?b1.clean:adjToCents(elA('clean2')?.value||'0'),fee:fee2,addInfo:(elA('addInfo2')?.value||'').trim(),addAmt:adjToCents(elA('addAmt2')?.value||'0')};
     const lc2ChargeC=isExt?0:(b2.linen+b2.clean);
     adjSetRonFields(direct,isRon,b1);
     const ownerGST1C=Math.round(b1.rent*ownerGSTRate), ownerGST2C=Math.round(b2.rent*ownerGSTRate);
