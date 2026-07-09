@@ -2265,19 +2265,6 @@ toggleFields();
         </div>
       </div>
 
-      <!-- Step 3: Actions -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-header-icon">🔄</div>
-          <div class="card-header-title">Step 3 — Actions</div>
-        </div>
-        <div class="card-body">
-          <button class="btn-primary" id="qc_reset">
-            Reset Calculator
-          </button>
-
-        </div>
-      </div>
 
     </div>
 
@@ -2953,7 +2940,7 @@ function qcPlatformRadioChanged() {
     $q('qc_clearPaste').addEventListener('click',()=>{ $q('qc_modPaste').innerHTML=''; qcRateMap={}; qcRateCount=0; $q('qc_parsed').textContent='0'; $q('qc_matchedInfo').textContent=''; qcRecompute(); });
     $q('qc_copyNote').addEventListener('click',()=>qcRobustCopy('qc_noteHtml'));
     $q('qc_copyEmail').addEventListener('click',()=>qcRobustCopy('qc_emailText'));
-    $q('qc_reset').addEventListener('click',qcResetAll);
+    var _qcr=$q('qc_reset'); if(_qcr) _qcr.addEventListener('click',qcResetAll);
     $q('qc_ltClose').addEventListener('click',()=>$q('qc_noLtModal').classList.add('hidden'));
     $q('qc_noLtModal').addEventListener('click',e=>{ if(e.target===$q('qc_noLtModal'))$q('qc_noLtModal').classList.add('hidden'); });
     document.addEventListener('keydown',e=>{ if(e.key==='Escape')$q('qc_noLtModal').classList.add('hidden'); });
@@ -3680,7 +3667,9 @@ function qcPlatformRadioChanged() {
     const gelLbl2=document.getElementById('adj_gelLabel');
     if(gelLbl2) gelLbl2.textContent='GEL ($'+(gelRateC/100)+'/night'+(elA('adj_bachHost')?.checked?' — Bach Host':'')+')';
     const rent2GstC=Math.round(rent2*ownerGSTRate);
-    const fee2Raw=Math.round((rent2+rent2GstC)*bookingFeeRate), fee2=fee2Raw>0?Math.max(4000,Math.min(fee2Raw,FEE_CAP_C)):0;
+    // Extensions use the raw formula (can go under $40). All other scenarios floor at $40.
+    const fee2Raw=Math.round((rent2+rent2GstC)*bookingFeeRate);
+    const fee2=fee2Raw>0 ? (isExt ? Math.min(fee2Raw,FEE_CAP_C) : Math.max(4000,Math.min(fee2Raw,FEE_CAP_C))) : 0;
     const b2={rent:rent2,linen:direct?b1.linen:adjToCents(elA('linen2')?.value||'0'),clean:direct?b1.clean:adjToCents(elA('clean2')?.value||'0'),fee:fee2,addInfo:(elA('addInfo2')?.value||'').trim(),addAmt:adjToCents(elA('addAmt2')?.value||'0')};
     const lc2ChargeC=isExt?0:(b2.linen+b2.clean);
     adjSetRonFields(direct,isRon,b1);
