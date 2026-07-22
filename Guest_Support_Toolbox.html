@@ -1143,14 +1143,17 @@ function parseLocalDate(v) {
   return new Date(y, m-1, d);
 }
 function daysBetween(a,b) { return Math.ceil((a-b)/86400000); }
-function getPlatform() { return document.querySelector('input[name="platform"]:checked').value; }
-function getWithin48() { return document.querySelector('input[name="within48"]:checked').value; }
+function getPlatform() { var el=document.querySelector('input[name="platform"]:checked'); return el ? el.value : ''; }
+function getWithin48() { var el=document.querySelector('input[name="within48"]:checked'); return el ? el.value : 'no'; }
 
 function toggleFields() {
   const isBachcare = getPlatform() === 'bachcare';
-  document.getElementById('bachcareTypeWrap').classList.toggle('hidden', !isBachcare);
-  const showUnexpected = isBachcare && document.getElementById('bachcareType').value === 'owner_unexpected';
-  document.getElementById('unexpectedInlineHelp').classList.toggle('hidden', !showUnexpected);
+  var wrap = document.getElementById('bachcareTypeWrap');
+  if(wrap) wrap.classList.toggle('hidden', !isBachcare);
+  var bt = document.getElementById('bachcareType');
+  const showUnexpected = isBachcare && bt && bt.value === 'owner_unexpected';
+  var help = document.getElementById('unexpectedInlineHelp');
+  if(help) help.classList.toggle('hidden', !showUnexpected);
 }
 
 function switchTab(name, el) {
@@ -2138,6 +2141,9 @@ toggleFields();
             <label class="field-label">Check-out Date</label>
             <input class="qc-select" id="qc_checkout" type="date" style="cursor:pointer;">
           </div>
+          <div id="qc_dateWarn" class="hidden" style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:var(--radius-sm);padding:9px 12px;margin-bottom:10px;font-size:12px;color:#92400e;line-height:1.5;">
+            <strong>&#9888; Check-out is on or before check-in.</strong> Please check the dates &mdash; especially the month and year.
+          </div>
 
           <!-- Stats tiles -->
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:4px;">
@@ -2184,18 +2190,16 @@ toggleFields();
           </div>
 
           <div class="field" style="border-top:1px dashed var(--border);padding-top:12px;margin-top:4px;">
-            <label class="field-label">GEL Rate (per night)</label>
-            <label style="display:flex;align-items:center;gap:7px;margin-bottom:8px;cursor:pointer;">
-              <input type="checkbox" id="qc_bachHost" style="width:14px;height:14px;cursor:pointer;">
-              <span style="font-size:13px;color:var(--text-secondary);">Bach Host property (flat $15/night)</span>
-            </label>
+            <label class="field-label">GEL Rate (per night) <span style="color:#dc2626;">*</span></label>
             <select class="qc-select" id="qc_gelRate">
-              <option value="auto" selected>Auto — from avg nightly rate</option>
-              <option value="1500">$15 — ADR up to $200</option>
-              <option value="2200">$22 — ADR $200–$300</option>
-              <option value="3000">$30 — ADR over $300</option>
+              <option value="" selected>Select the GEL rate…</option>
+              <option value="1500">$15 per night</option>
+              <option value="2200">$22 per night</option>
+              <option value="3000">$30 per night</option>
             </select>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:5px;line-height:1.5;">Managed properties: tiered by the property's calendar-year ADR off the base rate. Bach Host is always $15/night.</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.6;background:var(--surface-2);border-radius:var(--radius-sm);padding:8px 10px;">
+              Find it in Enterprise: open the PID &rarr; <strong>Finance</strong> tab &rarr; <strong>Pricing</strong> sub-tab &rarr; listed as <strong>Guest Experience Levy</strong>.
+            </div>
           </div>
 
           <label id="qc_lockCountsRow" class="toggle-group" style="display:flex;margin-bottom:10px;">
@@ -2720,6 +2724,9 @@ function qcPlatformRadioChanged() {
     const nights=(s&&e)?Math.max(0,Math.round((e-s)/QC_DAY)):0;
     $q('qc_nights').textContent=String(nights);
     qcSetGate();
+    // Warn if the date order is wrong (a silent $0 quote is easy to misread)
+    var _badDates = !!(s && e && e.getTime() <= s.getTime());
+    $q('qc_dateWarn').classList.toggle('hidden', !_badDates);
     if(!($q('qc_platform').value||'').trim()){ $q('qc_bookingCount').textContent='0'; $q('qc_status').textContent=''; $q('qc_statusHint').textContent=''; $q('qc_total').textContent=qcNzd(0); $q('qc_noteHtml').value=''; $q('qc_notePreview').innerHTML=''; $q('qc_emailText').value=''; return; }
     const tooLong=nights>168; $q('qc_limitWarn').classList.toggle('hidden',!tooLong);
     if(tooLong){ $q('qc_bookingCount').textContent='0'; $q('qc_total').textContent=qcNzd(0); return; }
@@ -2751,19 +2758,15 @@ function qcPlatformRadioChanged() {
     const discountC=discountApplied?Math.round(rentBeforeC*(discountPct/100)):0;
     const rentUsedC=Math.max(0,rentBeforeC-discountC);
     const gstC=Math.round(rentUsedC*0.15);
-    // GEL: tiered by ADR off base rate; Bach Host = flat $15
-    const avgNightlyC = nights>0 ? Math.round(rentBeforeC/nights) : 0;
-    const isBachHost = !!$q('qc_bachHost').checked;
-    let gelRateC;
-    if(isBachHost){ gelRateC=1500; }
-    else {
-      const gelSel = String($q('qc_gelRate').value||'auto');
-      if(gelSel==='auto') gelRateC = avgNightlyC<=20000?1500:(avgNightlyC<=30000?2200:3000);
-      else gelRateC = parseInt(gelSel,10)||1500;
+    // GEL: agent selects the rate from Enterprise (Finance > Pricing > Guest Experience Levy)
+    const gelSel = String($q('qc_gelRate').value||'');
+    const gelRateC = gelSel ? (parseInt(gelSel,10)||0) : 0;
+    const gelC = nights*gelRateC;
+    const gelLbl = $q('qc_gelLabel');
+    if(gelLbl){
+      if(gelRateC>0){ gelLbl.innerHTML = 'GEL ($'+(gelRateC/100)+' per night)'; }
+      else { gelLbl.innerHTML = '<span style="color:#b45309;font-weight:700;">&#9888; GEL — select rate in Step 2</span>'; }
     }
-    const gelC=nights*gelRateC;
-    const gelLbl=$q('qc_gelLabel');
-    if(gelLbl) gelLbl.textContent = 'GEL ($'+(gelRateC/100)+' per night'+(isBachHost?' — Bach Host':'')+')';
     const feeRawC=Math.round((rentUsedC+gstC)*0.071), feeCapC=29900*Math.max(1,bc), feeC=feeRawC>0?Math.max(4000, Math.min(feeRawC,feeCapC)):0;
     const markupBaseC=Math.round((rentUsedC*1.15)+gelC+feeC), markupC=Math.round(markupBaseC*(p.markup||0));
     const linenEachC=qcCents($q('qc_linenEach').value), cleanEachC=qcCents($q('qc_cleanEach').value);
@@ -2928,8 +2931,7 @@ function qcPlatformRadioChanged() {
   (function qcInit(){
     $q('qc_checkin').addEventListener('change', qcRecompute);
     $q('qc_checkout').addEventListener('change', qcRecompute);
-    ['qc_platform','qc_pid','qc_linenEach','qc_cleanEach','qc_lockCounts','qc_linenCount','qc_cleanCount','qc_deepCleanOn','qc_deepCleanAmt','qc_discountOn','qc_discountPct','qc_bookingNote','qc_bachHost','qc_gelRate'].forEach(id=>{ $q(id).addEventListener('input',qcRecompute); $q(id).addEventListener('change',qcRecompute); });
-    $q('qc_bachHost').addEventListener('change',function(){ var s=$q('qc_gelRate'); if(s) s.disabled=this.checked; });
+    ['qc_platform','qc_pid','qc_linenEach','qc_cleanEach','qc_lockCounts','qc_linenCount','qc_cleanCount','qc_deepCleanOn','qc_deepCleanAmt','qc_discountOn','qc_discountPct','qc_bookingNote','qc_gelRate'].forEach(id=>{ $q(id).addEventListener('input',qcRecompute); $q(id).addEventListener('change',qcRecompute); });
     $q('qc_platform').addEventListener('change',()=>{ qcSetGate(); qcRecompute(); });
     $q('qc_holdLine').addEventListener('change',qcRecompute);
     $q('qc_discountPct').addEventListener('input',()=>{ qcDiscManual=true; qcDiscOverride=true; });
@@ -3066,23 +3068,6 @@ function qcPlatformRadioChanged() {
     </div>
 
     <!-- ROW 2: Original Booking | New Booking side by side -->
-    <div id="adj_gelWrap" class="card" style="display:none;margin-bottom:16px;">
-      <div class="card-body" style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:14px 20px;">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-secondary);">GEL Rate</div>
-        <label style="display:flex;align-items:center;gap:7px;cursor:pointer;">
-          <input type="checkbox" id="adj_bachHost" style="width:14px;height:14px;cursor:pointer;" onchange="var s=document.getElementById('adj_gelRate');if(s)s.disabled=this.checked;if(typeof adjCompute==='function')adjCompute(false);">
-          <span style="font-size:13px;color:var(--text-secondary);">Bach Host property (flat $15/night)</span>
-        </label>
-        <select class="qc-select" id="adj_gelRate" style="width:auto;min-width:230px;" onchange="if(typeof adjCompute==='function')adjCompute(false);">
-          <option value="auto" selected>Auto — from avg nightly rate</option>
-          <option value="1500">$15 — ADR up to $200</option>
-          <option value="2200">$22 — ADR $200–$300</option>
-          <option value="3000">$30 — ADR over $300</option>
-        </select>
-        <div style="font-size:11px;color:var(--text-muted);flex:1;min-width:200px;">Managed properties tiered by calendar-year ADR off base rate. Bach Host always $15/night.</div>
-      </div>
-    </div>
-
     <div id="adj_bookingsRow" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
 
       <!-- Original Booking -->
@@ -3183,6 +3168,9 @@ function qcPlatformRadioChanged() {
               <input class="qc-select" id="newEnd" type="date" style="cursor:pointer;">
             </div>
           </div>
+          <div id="adj_dateWarn" class="hidden" style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:var(--radius-sm);padding:9px 12px;margin:8px 0;font-size:12px;color:#92400e;line-height:1.5;">
+            <strong>&#9888; Check-out is on or before check-in.</strong> Please check the dates &mdash; especially the month and year.
+          </div>
           <hr class="divider" style="margin:0 0 14px;">
           <div id="perNightBlock">
             <div class="field-label" style="margin-bottom:4px;">Daily Modifier Rates</div>
@@ -3205,6 +3193,18 @@ function qcPlatformRadioChanged() {
             </div>
           </div>
           <div id="linenCleanOtaHint" class="helper-text" style="margin-bottom: 8px;">Enter the linen and cleaning amounts from the <strong>original booking</strong>.</div>
+          <div class="field" style="margin-bottom:8px;">
+            <label class="field-label">GEL Rate (per night) <span style="color:#dc2626;">*</span></label>
+            <select class="qc-select" id="adj_gelRate" onchange="if(typeof adjCompute==='function')adjCompute(false);">
+              <option value="" selected>Select the GEL rate…</option>
+              <option value="1500">$15 per night</option>
+              <option value="2200">$22 per night</option>
+              <option value="3000">$30 per night</option>
+            </select>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.6;background:var(--surface-2);border-radius:var(--radius-sm);padding:8px 10px;">
+              Find it in Enterprise: open the PID &rarr; <strong>Finance</strong> tab &rarr; <strong>Pricing</strong> sub-tab &rarr; listed as <strong>Guest Experience Levy</strong>.
+            </div>
+          </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div class="field" style="grid-column:span 2;">
               <label class="field-label">Booking Fee (auto, capped $299)</label>
@@ -3419,7 +3419,7 @@ function qcPlatformRadioChanged() {
   function adjDtNZ(d){ if(!(d instanceof Date)||isNaN(d)) return ''; const dd=String(d.getUTCDate()).padStart(2,'0'),mm=String(d.getUTCMonth()+1).padStart(2,'0'),yy=d.getUTCFullYear(); return `${dd}/${mm}/${yy}`; }
   const adjNights = (a,b) => Math.max(0,Math.round((b-a)/ADJ_DAY));
   const adjOverlaps = (a1,a2,b1,b2) => a1&&a2&&b1&&b2&&(a1<=b2)&&(b1<=a2);
-  const FEE_CAP_C=29900; // GEL now tiered — see adjResolveGelRate()
+  const FEE_CAP_C=29900; // GEL is selected manually per property
   let adjLastNightlyKey='',adjLastDirectKey='',adjLastDirect30Key='',adjLastOtaExtKey='',adjLastOtaChangeKey='',adjLastOtaApprovalKey='';
 
   function adjCurrentChannel(){
@@ -3463,6 +3463,10 @@ function qcPlatformRadioChanged() {
   function adjDetectScenario(os,oe,ns,ne,pOld,pNew){
     if(pOld&&pNew&&pOld!==pNew) return{key:'rehouse',label:'Rehouse',gstWaived:true};
     const origN=(os&&oe)?adjNights(os,oe):0, newN=(ns&&ne)?adjNights(ns,ne):0;
+    // Warn if either date pair is out of order
+    var _adjBad = !!((os&&oe&&oe.getTime()<=os.getTime()) || (ns&&ne&&ne.getTime()<=ns.getTime()));
+    var _adjWarn = elA('adj_dateWarn');
+    if(_adjWarn) _adjWarn.classList.toggle('hidden', !_adjBad);
     const ov=adjOverlaps(os,oe,ns,ne);
     if(ov&&newN>origN) return{key:'extension',label:'Extension',gstWaived:false};
     if(ov&&newN<origN) return{key:'ron',label:'Reduction of Nights',gstWaived:false};
@@ -3631,41 +3635,28 @@ function qcPlatformRadioChanged() {
     adjSetExtFields(isExt);
     const b1={rent:adjToCents(elA('rent1')?.value||'0'),linen:adjToCents(elA('linen1')?.value||'0'),clean:adjToCents(elA('clean1')?.value||'0'),fee:adjToCents(elA('fee1')?.value||'0'),addInfo:(elA('addInfo1')?.value||'').trim(),addAmt:adjToCents(elA('addAmt1')?.value||'0')};
     adjMirrorLinenCleaning(direct);
-    // ── GEL rate resolution: Bach Host flat $15, manual tier, or auto from ADR ──
-    function adjGelTierFromAvg(avgC){ return avgC<=20000?1500:(avgC<=30000?2200:3000); }
-    function adjResolveGelRate(avgBaseNightlyC){
-      if(elA('adj_bachHost')?.checked) return 1500;
-      const sel=(elA('adj_gelRate')?.value)||'auto';
-      if(sel!=='auto') return parseInt(sel,10)||1500;
-      return adjGelTierFromAvg(avgBaseNightlyC||0);
-    }
+    // ── GEL rate: agent selects from Enterprise (Finance > Pricing > Guest Experience Levy) ──
+    const gelSelA = (elA('adj_gelRate')?.value)||'';
+    const gelRateC = gelSelA ? (parseInt(gelSelA,10)||0) : 0;
     let rent2=adjSumNightly();
-    let gelRateC;
     if(direct&&isRon){
       adjToggleNightlyBlock(false); elA('nightlyGrid').innerHTML='';
+      // Original total includes GST + GEL — back both out to get the base nightly rate
       const origRentInclC=adjToCents(elA('rent1')?.value||'0');
-      // Two-pass: guess a tier, back out rent, re-derive tier from actual base avg, redo if changed
-      let passRate = adjResolveGelRate(0); // Bach Host/manual short-circuit; auto starts at $15
-      for(let pass=0; pass<2; pass++){
-        const origGelC=origN*passRate;
-        const rentPlusGstC=Math.max(0,origRentInclC-origGelC);
-        const rentExGstC=origN>0?Math.round(rentPlusGstC/(1+ownerGSTRate)):0;
-        const avgBaseC=origN>0?Math.round(rentExGstC/origN):0;
-        const resolved=adjResolveGelRate(avgBaseC);
-        rent2=Math.round((origN>0?(rentExGstC/origN):0)*newN);
-        if(resolved===passRate) break;
-        passRate=resolved;
-      }
-      gelRateC=passRate;
+      const origGelC=origN*gelRateC;
+      const rentPlusGstC=Math.max(0,origRentInclC-origGelC);
+      const rentExGstC=origN>0?Math.round(rentPlusGstC/(1+ownerGSTRate)):0;
+      rent2=Math.round((origN>0?(rentExGstC/origN):0)*newN);
       elA('rent2Sum').textContent=adjNzd(rent2);
     } else {
       adjToggleNightlyBlock(true);
-      const avgC = gel2Nights>0 ? Math.round(rent2/gel2Nights) : 0;
-      gelRateC = adjResolveGelRate(avgC);
     }
     const gel2=gel2Nights*gelRateC;
     const gelLbl2=document.getElementById('adj_gelLabel');
-    if(gelLbl2) gelLbl2.textContent='GEL ($'+(gelRateC/100)+'/night'+(elA('adj_bachHost')?.checked?' — Bach Host':'')+')';
+    if(gelLbl2){
+      if(gelRateC>0) gelLbl2.innerHTML='GEL ($'+(gelRateC/100)+'/night)';
+      else gelLbl2.innerHTML='<span style="color:#b45309;font-weight:700;">&#9888; GEL — select rate above</span>';
+    }
     const rent2GstC=Math.round(rent2*ownerGSTRate);
     // Extensions use the raw formula (can go under $40). All other scenarios floor at $40.
     const fee2Raw=Math.round((rent2+rent2GstC)*bookingFeeRate);
@@ -3769,8 +3760,6 @@ function adjPlatformChanged(){
   const gate=document.getElementById('adj_gate');
   const sw=document.getElementById('adj_scenarioWrap');
   if(bookingsRow) bookingsRow.style.display=show?'grid':'none';
-  var gelWrap=document.getElementById('adj_gelWrap');
-  if(gelWrap) gelWrap.style.display=show?'block':'none';
   if(outputsRow) outputsRow.style.display=show?'flex':'none';
   if(gate) gate.style.display=show?'none':'';
   if(sw) sw.style.display=show?'flex':'none';
@@ -4500,19 +4489,19 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.tool-nav-btn').forEach(b => b.classList.remove('active'));
   var hp = document.getElementById('tool-home'); if(hp) hp.classList.add('active');
   var hb = document.querySelector('.tool-nav-btn[onclick*="home"]'); if(hb) hb.classList.add('active');
-  document.querySelectorAll('input[name="platform"]').forEach(r => r.checked = false);
+  document.querySelectorAll('input[name="platform"]').forEach(r => r.checked = (r.value === 'bachcare'));
   document.querySelectorAll('input[name="within48"]').forEach(r => r.checked = false);
   var w = document.getElementById('w48_no'); if(w) w.checked = true;
   var ci2 = document.getElementById('checkIn'); if(ci2) ci2.value='';
   var re2 = document.getElementById('resultEmpty'); if(re2) re2.style.display='';
   var rc = document.getElementById('resultContent'); if(rc) rc.classList.remove('active');
-  if(typeof toggleFields==='function') toggleFields();
+  try { if(typeof toggleFields==='function') toggleFields(); } catch(e){}
   document.querySelectorAll('input[name="qc_platform_radio"]').forEach(r => r.checked=false);
   var qci = document.getElementById('qc_checkin'); if(qci) qci.value='';
   var qco = document.getElementById('qc_checkout'); if(qco) qco.value='';
   document.querySelectorAll('input[name="adj_platform_radio"]').forEach(r => r.checked=false);
   ['origStart','origEnd','newStart','newEnd'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
-  if(typeof adjPlatformChanged==='function') adjPlatformChanged();
+  try { if(typeof adjPlatformChanged==='function') adjPlatformChanged(); } catch(e){}
 });
 </script>
 
@@ -6066,8 +6055,7 @@ function quoteReset(){
   var dl=document.getElementById('qc_lockCounts'); if(dl) dl.checked=true;
   var dc=document.getElementById('qc_deepCleanOn'); if(dc) dc.checked=true;
   var dd=document.getElementById('qc_discountOn'); if(dd) dd.checked=true;
-  var bh=document.getElementById('qc_bachHost'); if(bh) bh.checked=false;
-  var gr=document.getElementById('qc_gelRate'); if(gr){ gr.value='auto'; gr.disabled=false; }
+  var gr=document.getElementById('qc_gelRate'); if(gr) gr.value='';
   // Zero out summary values without destroying the HTML structure
   ['qc_rentBefore','qc_discountValue','qc_rentUsed','qc_gst','qc_gel',
    'qc_fee','qc_markup','qc_linenTotal','qc_cleanTotal','qc_deepCleanTotal','qc_total'].forEach(function(id){
@@ -6092,8 +6080,7 @@ function adjReset(){
   var ar=document.getElementById('adj_result'); if(ar) ar.innerHTML='';
   // Reset charge amendment fee checkbox
   var cf=document.getElementById('chargeAmendFee2'); if(cf) cf.checked=false;
-  var abh=document.getElementById('adj_bachHost'); if(abh) abh.checked=false;
-  var agr=document.getElementById('adj_gelRate'); if(agr){ agr.value='auto'; agr.disabled=false; }
+  var agr=document.getElementById('adj_gelRate'); if(agr) agr.value='';
   // Trigger platform change to reset UI state
   if(typeof adjPlatformChanged==='function') adjPlatformChanged();
 }
@@ -6222,8 +6209,7 @@ function quoteGetState(){
       da: (document.getElementById('qc_deepCleanAmt')||{}).value||'120.75',
       don: !!(document.getElementById('qc_discountOn')||{}).checked,
       dp: (document.getElementById('qc_discountPct')||{}).value||'0',
-      bh: !!(document.getElementById('qc_bachHost')||{}).checked,
-      gr: (document.getElementById('qc_gelRate')||{}).value||'auto'
+      gr: (document.getElementById('qc_gelRate')||{}).value||''
   };
 }
 function quoteGenerateFile(){
@@ -6285,8 +6271,7 @@ function quoteApplyState(s){
   var da=document.getElementById('qc_deepCleanAmt');if(da&&s.da)da.value=s.da;
   var don=document.getElementById('qc_discountOn');if(don&&s.don!==undefined)don.checked=!!s.don;
   var dp=document.getElementById('qc_discountPct');if(dp&&s.dp)dp.value=s.dp;
-  var bh=document.getElementById('qc_bachHost');if(bh&&s.bh!==undefined)bh.checked=!!s.bh;
-  var gr=document.getElementById('qc_gelRate');if(gr&&s.gr){gr.value=s.gr;gr.disabled=!!s.bh;}
+  var gr=document.getElementById('qc_gelRate');if(gr&&s.gr)gr.value=s.gr;
   var mp=document.getElementById('qc_modPaste');
   if(mp&&s.mp){ mp.innerHTML=s.mp; }
   setTimeout(function(){
@@ -6328,8 +6313,7 @@ function adjGenerateCode(){
       ai2: (document.getElementById('addInfo2')||{}).value||'',
       aa2: (document.getElementById('addAmt2')||{}).value||'',
       cf: !!(document.getElementById('chargeAmendFee2')||{}).checked,
-      bh: !!(document.getElementById('adj_bachHost')||{}).checked,
-      gr: (document.getElementById('adj_gelRate')||{}).value||'auto'
+      gr: (document.getElementById('adj_gelRate')||{}).value||''
     };
   var code=btoa(unescape(encodeURIComponent(JSON.stringify(state))));
   var el=document.getElementById('adj_share_code');
@@ -6376,8 +6360,7 @@ function adjConfirmLoad(){
     Object.keys(adjMap).forEach(function(id){var e=document.getElementById(id);if(e&&s[adjMap[id]]){e.value=s[adjMap[id]];e.dispatchEvent(new Event('input'));}});
     var af=document.getElementById('chargeAmendFee2');
     if(af) af.checked=!!s.cf;
-    var abh=document.getElementById('adj_bachHost');if(abh&&s.bh!==undefined)abh.checked=!!s.bh;
-    var agr=document.getElementById('adj_gelRate');if(agr&&s.gr){agr.value=s.gr;agr.disabled=!!s.bh;}
+    var agr=document.getElementById('adj_gelRate');if(agr&&s.gr)agr.value=s.gr;
     setTimeout(function(){ if(typeof window.adjCompute==='function')window.adjCompute(false); },100);
     msg.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-top:4px;"><span style="font-size:18px;">✅</span><span style="color:#4ade80;font-size:14px;font-weight:700;">Session Loaded!</span></div>';
     setTimeout(function(){
