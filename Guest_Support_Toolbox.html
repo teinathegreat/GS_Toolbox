@@ -302,6 +302,22 @@
   .tab-panel { display: none; padding: 18px 20px; }
   .tab-panel.active { display: block; }
 
+  /* RENT SOURCE TABS (Booking Quote Tool) — deliberately NOT .tab/.tab-panel:
+     the global switchTab() clears .active on every such element on the page. */
+  .qc-rent-tabs {
+    display: flex; border-bottom: 1px solid var(--border);
+    padding: 0 20px; gap: 2px; background: var(--surface-2);
+  }
+  .qc-rent-tab {
+    padding: 10px 14px; font-size: 12px; font-weight: 600;
+    color: var(--text-muted); cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: all 0.15s; user-select: none;
+    letter-spacing: 0.01em; white-space: nowrap;
+  }
+  .qc-rent-tab:hover { color: var(--text-primary); }
+  .qc-rent-tab-active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 700; }
+
   /* BREAKDOWN */
   .breakdown-list { list-style: none; padding: 0; }
   .breakdown-list li {
@@ -2279,13 +2295,18 @@ toggleFields();
       <div class="card" style="overflow:hidden;min-width:0;">
         <div class="card-header">
           <div class="card-header-icon">📊</div>
-          <div class="card-header-title">Daily Modifiers Paste Area</div>
+          <div class="card-header-title">Rent Source</div>
           <div id="qc_parsedRow" style="margin-left:auto;display:flex;align-items:center;gap:6px;">
             <span style="font-size:11px;color:var(--text-muted);">Parsed rates:</span>
             <span style="font-size:14px;font-weight:800;color:var(--brand);" id="qc_parsed">4</span>
           </div>
         </div>
+        <div class="qc-rent-tabs">
+          <div class="qc-rent-tab qc-rent-tab-active" data-mode="modifiers" id="qc_tab_modifiers" onclick="qcSwitchRentTab('modifiers')">Daily Modifiers</div>
+          <div class="qc-rent-tab" data-mode="nightly" id="qc_tab_nightly" onclick="qcSwitchRentTab('nightly')">Pure Nightly Rate</div>
+        </div>
         <div class="card-body">
+         <div id="qc_pane_modifiers" class="qc-rent-pane">
           <div style="font-size:12px;color:var(--text-muted);" id="qc_matchedInfo">Matched: 3 of 3 nights</div>
           <div style="width:100%;overflow:hidden;"><div class="qc-pastebox" contenteditable="true" data-placeholder="Paste the Daily Modifiers table here…" id="qc_modPaste" style="margin-top:6px;">
 
@@ -2313,6 +2334,16 @@ toggleFields();
             </button>
           </div>
           <div class="helper-text" style="margin-top:8px;">Uses the <strong>Day Price</strong> column per date — rent only, excludes GST and GEL.</div>
+         </div>
+
+         <div id="qc_pane_nightly" class="qc-rent-pane" style="display:none;">
+          <div class="field">
+            <label class="field-label" for="qc_nightlyRate">Nightly Rate (NZD)</label>
+            <input type="text" inputmode="decimal" id="qc_nightlyRate" class="qc-select" style="background-image:none;" placeholder="0.00">
+          </div>
+          <div id="qc_nightlyCalc" style="margin-top:10px;padding:10px 12px;background:var(--surface-2);border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-secondary);">Set the dates and a nightly rate to calculate rent.</div>
+          <div class="helper-text" style="margin-top:8px;">Rent = nightly rate × nights. Enter the <strong>rent only</strong> — GST, GEL, booking fee, markup and any discount are still applied automatically.</div>
+         </div>
         </div>
       </div>
 
@@ -2586,6 +2617,21 @@ function qcPlatformRadioChanged() {
   function qcEscape(s){ return String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;"); }
 
   let qcRateMap={}, qcRateCount=0, qcNoDiscShown=false, qcDiscManual=false, qcDiscOverride=false, qcLastAutoPct=0;
+  // Where the rent figure comes from: 'modifiers' (paste the Daily Modifiers table)
+  // or 'nightly' (one flat nightly rate x nights). Modifiers is the default.
+  let qcRentMode='modifiers';
+
+  function qcSwitchRentTab(mode){
+    qcRentMode = (mode==='nightly') ? 'nightly' : 'modifiers';
+    document.querySelectorAll('.qc-rent-tab').forEach(t=>{
+      t.classList.toggle('qc-rent-tab-active', t.getAttribute('data-mode')===qcRentMode);
+    });
+    const mp=$q('qc_pane_modifiers'), np=$q('qc_pane_nightly'), pr=$q('qc_parsedRow');
+    if(mp) mp.style.display = qcRentMode==='modifiers' ? '' : 'none';
+    if(np) np.style.display = qcRentMode==='nightly'   ? '' : 'none';
+    if(pr) pr.style.display = qcRentMode==='modifiers' ? 'flex' : 'none';
+    qcRecompute();
+  }
 
   function qcPlatformObj(){
     const v=($q('qc_platform').value||'').trim(); if(!v) return{key:'',label:'',markup:0};
@@ -2740,10 +2786,22 @@ function qcPlatformRadioChanged() {
     splits.forEach(x=>{ const li=document.createElement('li'); li.textContent=`Booking ${x.idx}: ${qcNz(qcParseDate(x.start.toISOString().slice(0,10))||x.start)} to ${qcNz(qcParseDate(x.end.toISOString().slice(0,10))||x.end)} (${x.nights} nights)`; ul.appendChild(li); });
     $q('qc_deepCleanCard').classList.toggle('hidden',!longTerm);
     qcUpdateCountsLock(bc);
-    const rentRes=qcSumRent(s,e), rentBeforeC=rentRes.sum;
-    $q('qc_parsed').textContent=String(qcRateCount);
-    const matched=(s&&e)?Math.max(0,nights-rentRes.missing):0;
-    $q('qc_matchedInfo').textContent=(s&&e&&nights>0)?`Matched: ${matched} of ${nights} nights`:'';
+    let rentBeforeC=0;
+    if(qcRentMode==='nightly'){
+      const nightlyC=qcCents($q('qc_nightlyRate')?.value||'');
+      rentBeforeC=nightlyC*nights;
+      const nc=$q('qc_nightlyCalc');
+      if(nc){
+        nc.textContent = (nights>0 && nightlyC>0)
+          ? `${nights} ${nights===1?'night':'nights'} x ${qcNzd(nightlyC)} = ${qcNzd(rentBeforeC)}`
+          : 'Set the dates and a nightly rate to calculate rent.';
+      }
+    } else {
+      const rentRes=qcSumRent(s,e); rentBeforeC=rentRes.sum;
+      $q('qc_parsed').textContent=String(qcRateCount);
+      const matched=(s&&e)?Math.max(0,nights-rentRes.missing):0;
+      $q('qc_matchedInfo').textContent=(s&&e&&nights>0)?`Matched: ${matched} of ${nights} nights`:'';
+    }
     const direct=p.key==='direct', showDiscount=longTerm&&direct;
     $q('qc_discountCard').classList.toggle('hidden',!showDiscount);
     const warnNoDisc=longTerm&&p.key&&!direct;
@@ -2802,6 +2860,8 @@ function qcPlatformRadioChanged() {
     document.querySelectorAll('input[name="qc_platform_radio"]').forEach(r => r.checked = false);
     $q('qc_platform').value=''; $q('qc_pid').value=''; $q('qc_modPaste').innerHTML='';
     qcRateMap={}; qcRateCount=0; $q('qc_parsed').textContent='0'; $q('qc_matchedInfo').textContent='';
+    if($q('qc_nightlyRate')) $q('qc_nightlyRate').value='';
+    qcSwitchRentTab('modifiers');
     $q('qc_linenEach').value='0'; $q('qc_cleanEach').value='0'; $q('qc_lockCounts').checked=true;
     $q('qc_linenCount').value='0'; $q('qc_cleanCount').value='0';
     $q('qc_deepCleanOn').checked=true; $q('qc_deepCleanAmt').value='120.75';
@@ -2837,6 +2897,8 @@ function qcPlatformRadioChanged() {
     qcRateMap = {}; qcRateCount = 0;
     $q('qc_parsed').textContent = '0';
     if($q('qc_matchedInfo')) $q('qc_matchedInfo').textContent = '';
+    if($q('qc_nightlyRate')) $q('qc_nightlyRate').value = '';
+    qcSwitchRentTab('modifiers');
     // Reset charge rows
     $q('qc_addChargeRows').innerHTML = '';
     $q('qc_addChargeRows').appendChild(qcRenderChargeRow());
@@ -2864,6 +2926,7 @@ function qcPlatformRadioChanged() {
   window.qcGetPastePayload = qcGetPastePayload;
   window._qcSetRates = function(map, count) { qcRateMap = map; qcRateCount = count; };
   window.qcResetAll = qcResetAll;
+  window.qcSwitchRentTab = qcSwitchRentTab;
 
   // Snapshot & restore for tutorial pre-fill
   window.qcSnapshotState = function() {
@@ -2886,6 +2949,8 @@ function qcPlatformRadioChanged() {
     snap.modPaste    = $q('qc_modPaste').innerHTML;
     snap.rateMap     = JSON.parse(JSON.stringify(qcRateMap));
     snap.rateCount   = qcRateCount;
+    snap.rentMode    = qcRentMode;
+    snap.nightlyRate = $q('qc_nightlyRate') ? $q('qc_nightlyRate').value : '';
     // capture additional charge rows
     var chargeRows = [];
     $q('qc_addChargeRows').querySelectorAll('.qc-charge-row').forEach(function(row) {
@@ -2920,6 +2985,8 @@ function qcPlatformRadioChanged() {
     qcRateMap   = snap.rateMap   || {};
     qcRateCount = snap.rateCount || 0;
     $q('qc_parsed').textContent = String(qcRateCount);
+    if($q('qc_nightlyRate')) $q('qc_nightlyRate').value = snap.nightlyRate || '';
+    qcSwitchRentTab(snap.rentMode || 'modifiers');
     // Restore charge rows
     $q('qc_addChargeRows').innerHTML = '';
     var rows = snap.chargeRows && snap.chargeRows.length ? snap.chargeRows : [{ info:'', amt:'' }];
@@ -2938,6 +3005,7 @@ function qcPlatformRadioChanged() {
     $q('qc_discountOn').addEventListener('change',()=>{ qcDiscOverride=true; qcRecompute(); });
     $q('qc_addChargeBtn').addEventListener('click',()=>{ $q('qc_addChargeRows').appendChild(qcRenderChargeRow()); qcRecompute(); });
     $q('qc_addChargeRows').innerHTML = ''; $q('qc_addChargeRows').appendChild(qcRenderChargeRow());
+    var _qcNr=$q('qc_nightlyRate'); if(_qcNr){ _qcNr.addEventListener('input',qcRecompute); _qcNr.addEventListener('change',qcRecompute); }
     $q('qc_parse').addEventListener('click',()=>{ const res=qcParseDailyModifiers(qcGetPastePayload()); qcRateMap=res.map; qcRateCount=res.count; qcRecompute(); });
     $q('qc_clearPaste').addEventListener('click',()=>{ $q('qc_modPaste').innerHTML=''; qcRateMap={}; qcRateCount=0; $q('qc_parsed').textContent='0'; $q('qc_matchedInfo').textContent=''; qcRecompute(); });
     $q('qc_copyNote').addEventListener('click',()=>qcRobustCopy('qc_noteHtml'));
@@ -6042,11 +6110,13 @@ function quoteReset(){
   // Clear text/date inputs
   ['qc_pid','qc_checkin','qc_checkout','qc_linenEach','qc_cleanEach',
    'qc_linenCount','qc_cleanCount','qc_deepCleanAmt','qc_discountPct',
-   'qc_bookingNote','qc_noteHtml','qc_emailText'].forEach(function(id){
+   'qc_bookingNote','qc_noteHtml','qc_emailText','qc_nightlyRate'].forEach(function(id){
     var e=document.getElementById(id); if(e) e.value='';
   });
   // Clear the contenteditable mod paste area
   var mp=document.getElementById('qc_modPaste'); if(mp) mp.innerHTML='';
+  // Back to the default rent source
+  if(typeof qcSwitchRentTab==='function') qcSwitchRentTab('modifiers');
   // Uncheck platform radios
   document.querySelectorAll('input[name="qc_platform_radio"]').forEach(function(r){ r.checked=false; });
   // Reset platform hidden select
@@ -6209,7 +6279,9 @@ function quoteGetState(){
       da: (document.getElementById('qc_deepCleanAmt')||{}).value||'120.75',
       don: !!(document.getElementById('qc_discountOn')||{}).checked,
       dp: (document.getElementById('qc_discountPct')||{}).value||'0',
-      gr: (document.getElementById('qc_gelRate')||{}).value||''
+      gr: (document.getElementById('qc_gelRate')||{}).value||'',
+      rm: (function(){var t=document.querySelector('.qc-rent-tab-active');return (t&&t.getAttribute('data-mode'))||'modifiers';})(),
+      nr: (document.getElementById('qc_nightlyRate')||{}).value||''
   };
 }
 function quoteGenerateFile(){
@@ -6274,6 +6346,9 @@ function quoteApplyState(s){
   var gr=document.getElementById('qc_gelRate');if(gr&&s.gr)gr.value=s.gr;
   var mp=document.getElementById('qc_modPaste');
   if(mp&&s.mp){ mp.innerHTML=s.mp; }
+  var nr=document.getElementById('qc_nightlyRate');if(nr)nr.value=s.nr||'';
+  // Older .bqt files predate the rent-source tabs — default them to modifiers
+  if(typeof qcSwitchRentTab==='function') qcSwitchRentTab(s.rm==='nightly'?'nightly':'modifiers');
   setTimeout(function(){
     if(mp&&s.mp&&typeof window.qcParseDailyModifiers==='function'){
       var payload={html:mp.innerHTML,text:mp.innerText};
