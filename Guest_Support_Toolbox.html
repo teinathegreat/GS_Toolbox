@@ -2304,6 +2304,7 @@ toggleFields();
         <div class="qc-rent-tabs">
           <div class="qc-rent-tab qc-rent-tab-active" data-mode="modifiers" id="qc_tab_modifiers" onclick="qcSwitchRentTab('modifiers')">Daily Modifiers</div>
           <div class="qc-rent-tab" data-mode="nightly" id="qc_tab_nightly" onclick="qcSwitchRentTab('nightly')">Pure Nightly Rate</div>
+          <div class="qc-rent-tab" data-mode="allin" id="qc_tab_allin" onclick="qcSwitchRentTab('allin')">All-Inclusive Rate</div>
         </div>
         <div class="card-body">
          <div id="qc_pane_modifiers" class="qc-rent-pane">
@@ -2343,6 +2344,16 @@ toggleFields();
           </div>
           <div id="qc_nightlyCalc" style="margin-top:10px;padding:10px 12px;background:var(--surface-2);border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-secondary);">Set the dates and a nightly rate to calculate rent.</div>
           <div class="helper-text" style="margin-top:8px;">Rent = nightly rate × nights. Enter the <strong>rent only</strong> — GST, GEL, booking fee, markup and any discount are still applied automatically.</div>
+         </div>
+
+         <div id="qc_pane_allin" class="qc-rent-pane" style="display:none;">
+          <div class="field">
+            <label class="field-label" for="qc_allInRate">All-Inclusive Rate per Night (NZD)</label>
+            <input type="text" inputmode="decimal" id="qc_allInRate" class="qc-select" style="background-image:none;" placeholder="0.00">
+          </div>
+          <div id="qc_allInCalc" style="margin-top:10px;padding:10px 12px;background:var(--surface-2);border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-secondary);line-height:1.7;">Set the dates and an all-inclusive rate to work back the rent.</div>
+          <div class="notice hidden" id="qc_allInWarn" style="margin-top:10px;background:var(--warn-bg);border-color:var(--warn-border);color:#78350f;"></div>
+          <div class="helper-text" style="margin-top:8px;">For guests quoted one all-in price. The rent is <strong>worked backwards</strong> so that rent + GST + GEL + booking fee + markup + linen + cleaning + deep clean + additional charges equals the rate × nights. Set GEL, linen, cleaning and any extra charges as normal first — they come out of the all-in total.</div>
          </div>
         </div>
       </div>
@@ -2622,13 +2633,14 @@ function qcPlatformRadioChanged() {
   let qcRentMode='modifiers';
 
   function qcSwitchRentTab(mode){
-    qcRentMode = (mode==='nightly') ? 'nightly' : 'modifiers';
+    qcRentMode = (mode==='nightly'||mode==='allin') ? mode : 'modifiers';
     document.querySelectorAll('.qc-rent-tab').forEach(t=>{
       t.classList.toggle('qc-rent-tab-active', t.getAttribute('data-mode')===qcRentMode);
     });
-    const mp=$q('qc_pane_modifiers'), np=$q('qc_pane_nightly'), pr=$q('qc_parsedRow');
+    const mp=$q('qc_pane_modifiers'), np=$q('qc_pane_nightly'), ap=$q('qc_pane_allin'), pr=$q('qc_parsedRow');
     if(mp) mp.style.display = qcRentMode==='modifiers' ? '' : 'none';
     if(np) np.style.display = qcRentMode==='nightly'   ? '' : 'none';
+    if(ap) ap.style.display = qcRentMode==='allin'     ? '' : 'none';
     if(pr) pr.style.display = qcRentMode==='modifiers' ? 'flex' : 'none';
     qcRecompute();
   }
@@ -2643,6 +2655,37 @@ function qcPlatformRadioChanged() {
     const has=!!($q('qc_platform').value||'').trim();
     $q('qc_gate').style.display = has?'none':'block';
     $q('qc_appContent').style.display = has?'block':'none';
+  }
+
+  // Rent -> every rent-dependent charge -> total. The single source of truth for
+  // quote maths: qcRecompute prices with it, and the all-inclusive solver searches
+  // with it, so a worked-back rent always reproduces the exact same breakdown.
+  // c = {discountApplied, discountPct, gelC, feeCapC, markup, fixedC}
+  function qcPrice(rentBeforeC,c){
+    const discountC=c.discountApplied?Math.round(rentBeforeC*(c.discountPct/100)):0;
+    const rentUsedC=Math.max(0,rentBeforeC-discountC);
+    const gstC=Math.round(rentUsedC*0.15);
+    const feeRawC=Math.round((rentUsedC+gstC)*0.071);
+    const feeC=feeRawC>0?Math.max(4000,Math.min(feeRawC,c.feeCapC)):0;
+    const markupBaseC=Math.round((rentUsedC*1.15)+c.gelC+feeC), markupC=Math.round(markupBaseC*(c.markup||0));
+    const totalC=rentUsedC+gstC+feeC+markupC+c.fixedC;
+    return {rentBeforeC,discountC,rentUsedC,gstC,feeC,markupC,totalC};
+  }
+
+  // Largest rent whose total does not exceed targetC. Total never decreases as
+  // rent rises, so a binary search works even across the booking-fee floor/cap
+  // and per-cent rounding. Returns null when the target can't even cover the
+  // fixed charges plus the minimum booking fee.
+  function qcSolveRent(targetC,c){
+    if(!(targetC>0)) return null;
+    if(qcPrice(1,c).totalC>targetC) return null;
+    let lo=1, hi=Math.max(2,targetC);
+    while(qcPrice(hi,c).totalC<=targetC) hi*=2;
+    while(hi-lo>1){ const mid=Math.floor((lo+hi)/2); if(qcPrice(mid,c).totalC<=targetC) lo=mid; else hi=mid; }
+    // A rent of a few cents rounds the booking fee to $0 and dodges the $40 minimum.
+    // If that is the only thing that fits, the rate is too low to be a real quote.
+    const res=qcPrice(lo,c);
+    return res.feeC>0 ? res : null;
   }
 
   function qcBookingCount(n){ return n<=0?0:Math.ceil(n/28); }
@@ -2786,22 +2829,6 @@ function qcPlatformRadioChanged() {
     splits.forEach(x=>{ const li=document.createElement('li'); li.textContent=`Booking ${x.idx}: ${qcNz(qcParseDate(x.start.toISOString().slice(0,10))||x.start)} to ${qcNz(qcParseDate(x.end.toISOString().slice(0,10))||x.end)} (${x.nights} nights)`; ul.appendChild(li); });
     $q('qc_deepCleanCard').classList.toggle('hidden',!longTerm);
     qcUpdateCountsLock(bc);
-    let rentBeforeC=0;
-    if(qcRentMode==='nightly'){
-      const nightlyC=qcCents($q('qc_nightlyRate')?.value||'');
-      rentBeforeC=nightlyC*nights;
-      const nc=$q('qc_nightlyCalc');
-      if(nc){
-        nc.textContent = (nights>0 && nightlyC>0)
-          ? `${nights} ${nights===1?'night':'nights'} x ${qcNzd(nightlyC)} = ${qcNzd(rentBeforeC)}`
-          : 'Set the dates and a nightly rate to calculate rent.';
-      }
-    } else {
-      const rentRes=qcSumRent(s,e); rentBeforeC=rentRes.sum;
-      $q('qc_parsed').textContent=String(qcRateCount);
-      const matched=(s&&e)?Math.max(0,nights-rentRes.missing):0;
-      $q('qc_matchedInfo').textContent=(s&&e&&nights>0)?`Matched: ${matched} of ${nights} nights`:'';
-    }
     const direct=p.key==='direct', showDiscount=longTerm&&direct;
     $q('qc_discountCard').classList.toggle('hidden',!showDiscount);
     const warnNoDisc=longTerm&&p.key&&!direct;
@@ -2813,9 +2840,6 @@ function qcPlatformRadioChanged() {
       qcLastAutoPct=autoPct; discountPct=parseFloat($q('qc_discountPct').value||'0')||0; discountApplied=$q('qc_discountOn').checked&&discountPct>0;
     } else { $q('qc_discountOn').checked=false; $q('qc_discountPct').value='0'; qcDiscManual=false; qcDiscOverride=false; qcLastAutoPct=0; }
     if(warnNoDisc){ $q('qc_discountOn').checked=false; $q('qc_discountPct').value='0'; $q('qc_discountTier').textContent=''; if(!qcNoDiscShown){ qcNoDiscShown=true; $q('qc_noLtModal').classList.remove('hidden'); } }
-    const discountC=discountApplied?Math.round(rentBeforeC*(discountPct/100)):0;
-    const rentUsedC=Math.max(0,rentBeforeC-discountC);
-    const gstC=Math.round(rentUsedC*0.15);
     // GEL: agent selects the rate from Enterprise (Finance > Pricing > Guest Experience Levy)
     const gelSel = String($q('qc_gelRate').value||'');
     const gelRateC = gelSel ? (parseInt(gelSel,10)||0) : 0;
@@ -2825,8 +2849,6 @@ function qcPlatformRadioChanged() {
       if(gelRateC>0){ gelLbl.innerHTML = 'GEL ($'+(gelRateC/100)+' per night)'; }
       else { gelLbl.innerHTML = '<span style="color:#b45309;font-weight:700;">&#9888; GEL — select rate in Step 2</span>'; }
     }
-    const feeRawC=Math.round((rentUsedC+gstC)*0.071), feeCapC=29900*Math.max(1,bc), feeC=feeRawC>0?Math.max(4000, Math.min(feeRawC,feeCapC)):0;
-    const markupBaseC=Math.round((rentUsedC*1.15)+gelC+feeC), markupC=Math.round(markupBaseC*(p.markup||0));
     const linenEachC=qcCents($q('qc_linenEach').value), cleanEachC=qcCents($q('qc_cleanEach').value);
     const linenCount=parseInt($q('qc_linenCount').value||'0',10)||0, cleanCount=parseInt($q('qc_cleanCount').value||'0',10)||0;
     const linenTotalC=linenEachC*linenCount, cleanTotalC=cleanEachC*cleanCount;
@@ -2837,7 +2859,47 @@ function qcPlatformRadioChanged() {
       if(dcAmt&&(!dcAmt.value||parseFloat(dcAmt.value)===0)) dcAmt.value='120.75';
     }
     let deepCleanC=0; if(longTerm&&$q('qc_deepCleanOn').checked)deepCleanC=qcCents($q('qc_deepCleanAmt').value);
-    const totalC=rentUsedC+gstC+gelC+feeC+markupC+linenTotalC+cleanTotalC+deepCleanC+additionalChargesTotalC;
+    const priceCtx={discountApplied,discountPct,gelC,feeCapC:29900*Math.max(1,bc),markup:p.markup||0,
+      fixedC:gelC+linenTotalC+cleanTotalC+deepCleanC+additionalChargesTotalC};
+
+    let rentBeforeC=0;
+    if(qcRentMode==='nightly'){
+      const nightlyC=qcCents($q('qc_nightlyRate')?.value||'');
+      rentBeforeC=nightlyC*nights;
+      const nc=$q('qc_nightlyCalc');
+      if(nc){
+        nc.textContent = (nights>0 && nightlyC>0)
+          ? `${nights} ${nights===1?'night':'nights'} x ${qcNzd(nightlyC)} = ${qcNzd(rentBeforeC)}`
+          : 'Set the dates and a nightly rate to calculate rent.';
+      }
+    } else if(qcRentMode==='allin'){
+      const allInC=qcCents($q('qc_allInRate')?.value||'');
+      const targetC=allInC*nights;
+      const ac=$q('qc_allInCalc'), aw=$q('qc_allInWarn');
+      let warn='';
+      if(nights>0 && allInC>0){
+        const solved=qcSolveRent(targetC,priceCtx);
+        if(solved){
+          rentBeforeC=solved.rentBeforeC;
+          const shortC=targetC-solved.totalC;
+          ac.innerHTML=`Target total: ${nights} ${nights===1?'night':'nights'} x ${qcNzd(allInC)} = <strong>${qcNzd(targetC)}</strong><br>`+
+            `Rent worked back: <strong>${qcNzd(rentBeforeC)}</strong> (${qcNzd(Math.round(rentBeforeC/nights))} per night)`;
+          if(shortC>0) warn=`Total is ${qcNzd(shortC)} under the target — per-cent rounding means no rent lands on it exactly. Rounded down so the guest is never charged over the agreed price.`;
+        } else {
+          ac.textContent=`Target total: ${nights} ${nights===1?'night':'nights'} x ${qcNzd(allInC)} = ${qcNzd(targetC)}`;
+          warn=`This rate is too low. Linen, cleaning, GEL, deep clean and extra charges already come to ${qcNzd(priceCtx.fixedC)}, plus a minimum $40.00 booking fee — the all-in total must be more than that.`;
+        }
+      } else {
+        ac.textContent='Set the dates and an all-inclusive rate to work back the rent.';
+      }
+      if(aw){ aw.textContent=warn; aw.classList.toggle('hidden',!warn); }
+    } else {
+      const rentRes=qcSumRent(s,e); rentBeforeC=rentRes.sum;
+      $q('qc_parsed').textContent=String(qcRateCount);
+      const matched=(s&&e)?Math.max(0,nights-rentRes.missing):0;
+      $q('qc_matchedInfo').textContent=(s&&e&&nights>0)?`Matched: ${matched} of ${nights} nights`:'';
+    }
+    const {discountC,rentUsedC,gstC,feeC,markupC,totalC}=qcPrice(rentBeforeC,priceCtx);
     $q('qc_rentBefore').textContent=qcNzd(rentBeforeC); $q('qc_discountValue').textContent=qcNzd(discountC); $q('qc_rentUsed').textContent=qcNzd(rentUsedC);
     $q('qc_gst').textContent=qcNzd(gstC); $q('qc_gel').textContent=qcNzd(gelC); $q('qc_fee').textContent=qcNzd(feeC); $q('qc_markup').textContent=qcNzd(markupC);
     $q('qc_linenTotal').textContent=qcNzd(linenTotalC); $q('qc_cleanTotal').textContent=qcNzd(cleanTotalC);
@@ -2861,6 +2923,7 @@ function qcPlatformRadioChanged() {
     $q('qc_platform').value=''; $q('qc_pid').value=''; $q('qc_modPaste').innerHTML='';
     qcRateMap={}; qcRateCount=0; $q('qc_parsed').textContent='0'; $q('qc_matchedInfo').textContent='';
     if($q('qc_nightlyRate')) $q('qc_nightlyRate').value='';
+    if($q('qc_allInRate')) $q('qc_allInRate').value='';
     qcSwitchRentTab('modifiers');
     $q('qc_linenEach').value='0'; $q('qc_cleanEach').value='0'; $q('qc_lockCounts').checked=true;
     $q('qc_linenCount').value='0'; $q('qc_cleanCount').value='0';
@@ -2898,6 +2961,7 @@ function qcPlatformRadioChanged() {
     $q('qc_parsed').textContent = '0';
     if($q('qc_matchedInfo')) $q('qc_matchedInfo').textContent = '';
     if($q('qc_nightlyRate')) $q('qc_nightlyRate').value = '';
+    if($q('qc_allInRate')) $q('qc_allInRate').value = '';
     qcSwitchRentTab('modifiers');
     // Reset charge rows
     $q('qc_addChargeRows').innerHTML = '';
@@ -2951,6 +3015,7 @@ function qcPlatformRadioChanged() {
     snap.rateCount   = qcRateCount;
     snap.rentMode    = qcRentMode;
     snap.nightlyRate = $q('qc_nightlyRate') ? $q('qc_nightlyRate').value : '';
+    snap.allInRate   = $q('qc_allInRate') ? $q('qc_allInRate').value : '';
     // capture additional charge rows
     var chargeRows = [];
     $q('qc_addChargeRows').querySelectorAll('.qc-charge-row').forEach(function(row) {
@@ -2986,6 +3051,7 @@ function qcPlatformRadioChanged() {
     qcRateCount = snap.rateCount || 0;
     $q('qc_parsed').textContent = String(qcRateCount);
     if($q('qc_nightlyRate')) $q('qc_nightlyRate').value = snap.nightlyRate || '';
+    if($q('qc_allInRate')) $q('qc_allInRate').value = snap.allInRate || '';
     qcSwitchRentTab(snap.rentMode || 'modifiers');
     // Restore charge rows
     $q('qc_addChargeRows').innerHTML = '';
@@ -3005,6 +3071,7 @@ function qcPlatformRadioChanged() {
     $q('qc_discountOn').addEventListener('change',()=>{ qcDiscOverride=true; qcRecompute(); });
     $q('qc_addChargeBtn').addEventListener('click',()=>{ $q('qc_addChargeRows').appendChild(qcRenderChargeRow()); qcRecompute(); });
     $q('qc_addChargeRows').innerHTML = ''; $q('qc_addChargeRows').appendChild(qcRenderChargeRow());
+    var _qcAr=$q('qc_allInRate'); if(_qcAr){ _qcAr.addEventListener('input',qcRecompute); _qcAr.addEventListener('change',qcRecompute); }
     var _qcNr=$q('qc_nightlyRate'); if(_qcNr){ _qcNr.addEventListener('input',qcRecompute); _qcNr.addEventListener('change',qcRecompute); }
     $q('qc_parse').addEventListener('click',()=>{ const res=qcParseDailyModifiers(qcGetPastePayload()); qcRateMap=res.map; qcRateCount=res.count; qcRecompute(); });
     $q('qc_clearPaste').addEventListener('click',()=>{ $q('qc_modPaste').innerHTML=''; qcRateMap={}; qcRateCount=0; $q('qc_parsed').textContent='0'; $q('qc_matchedInfo').textContent=''; qcRecompute(); });
@@ -6110,7 +6177,7 @@ function quoteReset(){
   // Clear text/date inputs
   ['qc_pid','qc_checkin','qc_checkout','qc_linenEach','qc_cleanEach',
    'qc_linenCount','qc_cleanCount','qc_deepCleanAmt','qc_discountPct',
-   'qc_bookingNote','qc_noteHtml','qc_emailText','qc_nightlyRate'].forEach(function(id){
+   'qc_bookingNote','qc_noteHtml','qc_emailText','qc_nightlyRate','qc_allInRate'].forEach(function(id){
     var e=document.getElementById(id); if(e) e.value='';
   });
   // Clear the contenteditable mod paste area
@@ -6281,7 +6348,8 @@ function quoteGetState(){
       dp: (document.getElementById('qc_discountPct')||{}).value||'0',
       gr: (document.getElementById('qc_gelRate')||{}).value||'',
       rm: (function(){var t=document.querySelector('.qc-rent-tab-active');return (t&&t.getAttribute('data-mode'))||'modifiers';})(),
-      nr: (document.getElementById('qc_nightlyRate')||{}).value||''
+      nr: (document.getElementById('qc_nightlyRate')||{}).value||'',
+      ar: (document.getElementById('qc_allInRate')||{}).value||''
   };
 }
 function quoteGenerateFile(){
@@ -6347,8 +6415,9 @@ function quoteApplyState(s){
   var mp=document.getElementById('qc_modPaste');
   if(mp&&s.mp){ mp.innerHTML=s.mp; }
   var nr=document.getElementById('qc_nightlyRate');if(nr)nr.value=s.nr||'';
+  var ar=document.getElementById('qc_allInRate');if(ar)ar.value=s.ar||'';
   // Older .bqt files predate the rent-source tabs — default them to modifiers
-  if(typeof qcSwitchRentTab==='function') qcSwitchRentTab(s.rm==='nightly'?'nightly':'modifiers');
+  if(typeof qcSwitchRentTab==='function') qcSwitchRentTab((s.rm==='nightly'||s.rm==='allin')?s.rm:'modifiers');
   setTimeout(function(){
     if(mp&&s.mp&&typeof window.qcParseDailyModifiers==='function'){
       var payload={html:mp.innerHTML,text:mp.innerText};
