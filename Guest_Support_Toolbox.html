@@ -2301,7 +2301,7 @@ toggleFields();
             <span style="font-size:14px;font-weight:800;color:var(--brand);" id="qc_parsed">4</span>
           </div>
         </div>
-        <div class="qc-rent-tabs" id="qc_rentTabs">
+        <div class="qc-rent-tabs">
           <div class="qc-rent-tab qc-rent-tab-active" data-mode="modifiers" id="qc_tab_modifiers" onclick="qcSwitchRentTab('modifiers')">Daily Modifiers</div>
           <div class="qc-rent-tab" data-mode="nightly" id="qc_tab_nightly" onclick="qcSwitchRentTab('nightly')">Pure Nightly Rate</div>
         </div>
@@ -2353,10 +2353,6 @@ toggleFields();
           <div class="card-header-icon">🧮</div>
           <div class="card-header-title">Quote Summary</div>
         </div>
-        <div class="qc-rent-tabs" id="qc_summaryTabs">
-          <div class="qc-rent-tab qc-rent-tab-active" data-sumtab="summary" id="qc_tab_summary" onclick="qcSwitchSummaryTab('summary')">Summary</div>
-          <div class="qc-rent-tab" data-sumtab="split" id="qc_tab_split" onclick="qcSwitchSummaryTab('split')">Money Split</div>
-        </div>
         <div class="card-body" id="qc_summaryBody">
           <!-- Gate message when no platform -->
           <div id="qc_gate" style="text-align: center; padding: 24px 0px; color: var(--text-muted); display: none;">
@@ -2365,7 +2361,6 @@ toggleFields();
             <div style="font-size:12px;margin-top:4px;">Choose a platform in Step 1 to unlock the calculator.</div>
           </div>
           <div id="qc_appContent" style="display: block;">
-           <div id="qc_pane_summary">
             <div id="qc_summaryRows">
               <div class="breakdown-list" style="list-style:none;padding:0;">
                 <div class="qc-summary-row"><span>Rent (before discount)</span><span id="qc_rentBefore" style="font-weight:600;">$876.00</span></div>
@@ -2382,37 +2377,6 @@ toggleFields();
               </div>
             </div>
             <div class="qc-summary-total" id="qc_totalRow"><span>Total (NZD)</span><span id="qc_total">$1,637.40</span></div>
-           </div>
-
-           <div id="qc_pane_split" style="display:none;">
-            <div class="field" style="margin-bottom:12px;">
-              <label class="field-label" for="qc_ms_pct">Bachcare commission</label>
-              <select id="qc_ms_pct" class="qc-select" style="margin-bottom:10px;">
-                <option value="10">10%</option>
-                <option value="15">15%</option>
-                <option value="20">20%</option>
-                <option value="25" selected="selected">25%</option>
-                <option value="35">35%</option>
-              </select>
-              <label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;cursor:pointer;">
-                <input type="checkbox" id="qc_ms_notGst" style="width:14px;height:14px;">
-                Owner is not GST registered
-              </label>
-              <div class="helper-text" style="margin-top:4px;">Tick this and the owner receives the 8.5% GST flat-rate credit in hand; the remaining 6.5% goes to IRD. Left unticked, the full 15% is paid to IRD and none of it reaches the owner in hand.</div>
-            </div>
-            <div class="breakdown-list" style="list-style:none;padding:0;">
-              <div class="qc-summary-row"><span>Commission <span id="qc_ms_commPct" style="color:var(--text-muted);">(25%)</span></span><span id="qc_ms_commAmt" style="font-weight:700;">$0.00</span></div>
-              <div class="qc-summary-row"><span>Owner <span id="qc_ms_ownerPct" style="color:var(--text-muted);">(75%)</span></span><span id="qc_ms_ownerAmt" style="font-weight:700;">$0.00</span></div>
-              <div class="qc-summary-row hidden" id="qc_ms_gstCreditRow"><span>GST credit to owner <span style="color:var(--text-muted);">(8.5%)</span></span><span id="qc_ms_gstCredit" style="color:var(--success);font-weight:600;">$0.00</span></div>
-              <div class="qc-summary-row"><span>GST paid to IRD <span id="qc_ms_gstIrdPct" style="color:var(--text-muted);">(15%)</span></span><span id="qc_ms_gstIrd">$0.00</span></div>
-              <div class="qc-summary-row" style="border-top:2px solid var(--border);border-bottom:2px solid var(--border);padding:8px 0;margin:4px 0;"><span style="font-weight:700;">Owner paid in hand</span><span id="qc_ms_inHand" style="font-weight:800;color:var(--brand);">$0.00</span></div>
-              <div class="qc-summary-row"><span>Supplements <span style="color:var(--text-muted);">(Linen &amp; Cleaning)</span></span><span id="qc_ms_supp">$0.00</span></div>
-              <div class="qc-summary-row hidden" id="qc_ms_deepRow"><span>Deep clean</span><span id="qc_ms_deep">$0.00</span></div>
-              <div class="qc-summary-row"><span>Booking Fee</span><span id="qc_ms_fee">$0.00</span></div>
-              <div class="qc-summary-row"><span>GEL</span><span id="qc_ms_gel">$0.00</span></div>
-            </div>
-            <div class="helper-text" style="margin-top:10px;">Commission and owner share are split from <strong>Rent used for calc</strong> (<span id="qc_ms_base">$0.00</span>) — the rent after any long-term discount, excluding GST. GST on that rent is <span id="qc_ms_gstTotal">$0.00</span>. Supplements, booking fee and GEL are shown separately and are not part of the commission split.</div>
-           </div>
           </div>
         </div>
       </div>
@@ -2659,7 +2623,7 @@ function qcPlatformRadioChanged() {
 
   function qcSwitchRentTab(mode){
     qcRentMode = (mode==='nightly') ? 'nightly' : 'modifiers';
-    document.querySelectorAll('#qc_rentTabs .qc-rent-tab').forEach(t=>{
+    document.querySelectorAll('.qc-rent-tab').forEach(t=>{
       t.classList.toggle('qc-rent-tab-active', t.getAttribute('data-mode')===qcRentMode);
     });
     const mp=$q('qc_pane_modifiers'), np=$q('qc_pane_nightly'), pr=$q('qc_parsedRow');
@@ -2679,52 +2643,6 @@ function qcPlatformRadioChanged() {
     const has=!!($q('qc_platform').value||'').trim();
     $q('qc_gate').style.display = has?'none':'block';
     $q('qc_appContent').style.display = has?'block':'none';
-  }
-
-  function qcSwitchSummaryTab(tab){
-    const which = (tab==='split') ? 'split' : 'summary';
-    document.querySelectorAll('#qc_summaryTabs .qc-rent-tab').forEach(t=>{
-      t.classList.toggle('qc-rent-tab-active', t.getAttribute('data-sumtab')===which);
-    });
-    const sp=$q('qc_pane_summary'), mp=$q('qc_pane_split');
-    if(sp) sp.style.display = which==='summary' ? '' : 'none';
-    if(mp) mp.style.display = which==='split'   ? '' : 'none';
-  }
-
-  // Where the money goes. Commission is a share of the rent actually charged
-  // (after any long-term discount, excluding owner GST); the remainder is the
-  // owner's. Supplements, booking fee and GEL sit outside that split.
-  function qcRenderSplit(p){
-    if(!$q('qc_ms_pct')) return;
-    const pct=parseFloat($q('qc_ms_pct').value||'25')||0;
-    const rentC=p.rentUsedC||0;
-    const commC=Math.round(rentC*(pct/100));
-    const ownerC=Math.max(0,rentC-commC);
-    const suppC=(p.linenTotalC||0)+(p.cleanTotalC||0);
-    // GST on the rent. A non-GST-registered owner receives the 8.5% flat-rate
-    // credit in hand and IRD takes the remaining 6.5%; a registered owner gets
-    // none of it in hand and the full 15% is paid to IRD.
-    const gstC=p.gstC||0;
-    const notGst=!!($q('qc_ms_notGst') && $q('qc_ms_notGst').checked);
-    const gstCreditC=notGst?Math.round(rentC*0.085):0;
-    const gstIrdC=Math.max(0,gstC-gstCreditC);
-    const inHandC=ownerC+gstCreditC;
-    $q('qc_ms_commPct').textContent='('+pct+'%)';
-    $q('qc_ms_ownerPct').textContent='('+(100-pct)+'%)';
-    $q('qc_ms_commAmt').textContent=qcNzd(commC);
-    $q('qc_ms_ownerAmt').textContent=qcNzd(ownerC);
-    $q('qc_ms_gstCreditRow').classList.toggle('hidden',!notGst);
-    $q('qc_ms_gstCredit').textContent=qcNzd(gstCreditC);
-    $q('qc_ms_gstIrdPct').textContent=notGst?'(6.5%)':'(15%)';
-    $q('qc_ms_gstIrd').textContent=qcNzd(gstIrdC);
-    $q('qc_ms_inHand').textContent=qcNzd(inHandC);
-    $q('qc_ms_gstTotal').textContent=qcNzd(gstC);
-    $q('qc_ms_supp').textContent=qcNzd(suppC);
-    $q('qc_ms_fee').textContent=qcNzd(p.feeC||0);
-    $q('qc_ms_gel').textContent=qcNzd(p.gelC||0);
-    $q('qc_ms_base').textContent=qcNzd(rentC);
-    $q('qc_ms_deepRow').classList.toggle('hidden',!((p.deepCleanC||0)>0));
-    $q('qc_ms_deep').textContent=qcNzd(p.deepCleanC||0);
   }
 
   function qcBookingCount(n){ return n<=0?0:Math.ceil(n/28); }
@@ -2855,9 +2773,9 @@ function qcPlatformRadioChanged() {
     // Warn if the date order is wrong (a silent $0 quote is easy to misread)
     var _badDates = !!(s && e && e.getTime() <= s.getTime());
     $q('qc_dateWarn').classList.toggle('hidden', !_badDates);
-    if(!($q('qc_platform').value||'').trim()){ qcRenderSplit({}); $q('qc_bookingCount').textContent='0'; $q('qc_status').textContent=''; $q('qc_statusHint').textContent=''; $q('qc_total').textContent=qcNzd(0); $q('qc_noteHtml').value=''; $q('qc_notePreview').innerHTML=''; $q('qc_emailText').value=''; return; }
+    if(!($q('qc_platform').value||'').trim()){ $q('qc_bookingCount').textContent='0'; $q('qc_status').textContent=''; $q('qc_statusHint').textContent=''; $q('qc_total').textContent=qcNzd(0); $q('qc_noteHtml').value=''; $q('qc_notePreview').innerHTML=''; $q('qc_emailText').value=''; return; }
     const tooLong=nights>168; $q('qc_limitWarn').classList.toggle('hidden',!tooLong);
-    if(tooLong){ qcRenderSplit({}); $q('qc_bookingCount').textContent='0'; $q('qc_total').textContent=qcNzd(0); return; }
+    if(tooLong){ $q('qc_bookingCount').textContent='0'; $q('qc_total').textContent=qcNzd(0); return; }
     const longTerm=nights>28, bc=qcBookingCount(nights);
     $q('qc_bookingCount').textContent=String(bc);
     $q('qc_status').textContent=longTerm?'Long-term':'Short stay';
@@ -2927,7 +2845,6 @@ function qcPlatformRadioChanged() {
     if(additionalChargesItems&&additionalChargesItems.length){ additionalChargesItems.forEach((it,i)=>{ const line=document.createElement('div'); line.className='qc-summary-row'; line.innerHTML=`<span>${qcEscape(it.info||`Charge ${i+1}`)}</span><span>${qcNzd(it.amtC)}</span>`; addWrap.appendChild(line); }); const tl=document.createElement('div'); tl.className='qc-summary-row'; tl.style.fontWeight='600'; tl.innerHTML=`<span>Additional total</span><span>${qcNzd(additionalChargesTotalC)}</span>`; addWrap.appendChild(tl); }
     $q('qc_deepCleanRow').classList.toggle('hidden',!(longTerm&&deepCleanC>0)); $q('qc_deepCleanTotal').textContent=qcNzd(deepCleanC);
     $q('qc_total').textContent=qcNzd(totalC);
-    qcRenderSplit({rentUsedC,linenTotalC,cleanTotalC,deepCleanC,feeC,gelC,gstC});
     const checkinTxt=s?qcNz(s):'-', checkoutTxt=e?qcNz(e):'-';
     const splitPayload=splits.map(x=>({idx:x.idx,start:qcNz(x.start),end:qcNz(x.end),nights:x.nights}));
     qcBuildOutputs({platformLabel:p.label,platformMarkupPct:(p.markup||0)*100,pid:$q('qc_pid').value.trim(),bookingNote:($q('qc_bookingNote')?.value||'').trim(),checkin:checkinTxt,checkout:checkoutTxt,nights,rentBeforeC,discountPct,discountC,rentUsedC,gstC,gelC,feeC,markupC,linenTotalC,cleanTotalC,deepCleanC,totalC,additionalChargesItems,additionalChargesTotalC,longTerm,bookingSplits:splitPayload,linenCount,cleanCount});
@@ -2944,9 +2861,7 @@ function qcPlatformRadioChanged() {
     $q('qc_platform').value=''; $q('qc_pid').value=''; $q('qc_modPaste').innerHTML='';
     qcRateMap={}; qcRateCount=0; $q('qc_parsed').textContent='0'; $q('qc_matchedInfo').textContent='';
     if($q('qc_nightlyRate')) $q('qc_nightlyRate').value='';
-    if($q('qc_ms_pct')) $q('qc_ms_pct').value='25';
-    if($q('qc_ms_notGst')) $q('qc_ms_notGst').checked=false;
-    qcSwitchRentTab('modifiers'); qcSwitchSummaryTab('summary');
+    qcSwitchRentTab('modifiers');
     $q('qc_linenEach').value='0'; $q('qc_cleanEach').value='0'; $q('qc_lockCounts').checked=true;
     $q('qc_linenCount').value='0'; $q('qc_cleanCount').value='0';
     $q('qc_deepCleanOn').checked=true; $q('qc_deepCleanAmt').value='120.75';
@@ -2983,9 +2898,7 @@ function qcPlatformRadioChanged() {
     $q('qc_parsed').textContent = '0';
     if($q('qc_matchedInfo')) $q('qc_matchedInfo').textContent = '';
     if($q('qc_nightlyRate')) $q('qc_nightlyRate').value = '';
-    if($q('qc_ms_pct')) $q('qc_ms_pct').value = '25';
-    if($q('qc_ms_notGst')) $q('qc_ms_notGst').checked = false;
-    qcSwitchRentTab('modifiers'); qcSwitchSummaryTab('summary');
+    qcSwitchRentTab('modifiers');
     // Reset charge rows
     $q('qc_addChargeRows').innerHTML = '';
     $q('qc_addChargeRows').appendChild(qcRenderChargeRow());
@@ -3014,7 +2927,6 @@ function qcPlatformRadioChanged() {
   window._qcSetRates = function(map, count) { qcRateMap = map; qcRateCount = count; };
   window.qcResetAll = qcResetAll;
   window.qcSwitchRentTab = qcSwitchRentTab;
-  window.qcSwitchSummaryTab = qcSwitchSummaryTab;
 
   // Snapshot & restore for tutorial pre-fill
   window.qcSnapshotState = function() {
@@ -3038,8 +2950,6 @@ function qcPlatformRadioChanged() {
     snap.rateMap     = JSON.parse(JSON.stringify(qcRateMap));
     snap.rateCount   = qcRateCount;
     snap.rentMode    = qcRentMode;
-    snap.commissionPct = $q('qc_ms_pct') ? $q('qc_ms_pct').value : '25';
-    snap.notGstReg     = $q('qc_ms_notGst') ? $q('qc_ms_notGst').checked : false;
     snap.nightlyRate = $q('qc_nightlyRate') ? $q('qc_nightlyRate').value : '';
     // capture additional charge rows
     var chargeRows = [];
@@ -3076,8 +2986,6 @@ function qcPlatformRadioChanged() {
     qcRateCount = snap.rateCount || 0;
     $q('qc_parsed').textContent = String(qcRateCount);
     if($q('qc_nightlyRate')) $q('qc_nightlyRate').value = snap.nightlyRate || '';
-    if($q('qc_ms_pct')) $q('qc_ms_pct').value = snap.commissionPct || '25';
-    if($q('qc_ms_notGst')) $q('qc_ms_notGst').checked = !!snap.notGstReg;
     qcSwitchRentTab(snap.rentMode || 'modifiers');
     // Restore charge rows
     $q('qc_addChargeRows').innerHTML = '';
@@ -3097,8 +3005,6 @@ function qcPlatformRadioChanged() {
     $q('qc_discountOn').addEventListener('change',()=>{ qcDiscOverride=true; qcRecompute(); });
     $q('qc_addChargeBtn').addEventListener('click',()=>{ $q('qc_addChargeRows').appendChild(qcRenderChargeRow()); qcRecompute(); });
     $q('qc_addChargeRows').innerHTML = ''; $q('qc_addChargeRows').appendChild(qcRenderChargeRow());
-    var _qcMs=$q('qc_ms_pct'); if(_qcMs) _qcMs.addEventListener('change',qcRecompute);
-    var _qcGst=$q('qc_ms_notGst'); if(_qcGst) _qcGst.addEventListener('change',qcRecompute);
     var _qcNr=$q('qc_nightlyRate'); if(_qcNr){ _qcNr.addEventListener('input',qcRecompute); _qcNr.addEventListener('change',qcRecompute); }
     $q('qc_parse').addEventListener('click',()=>{ const res=qcParseDailyModifiers(qcGetPastePayload()); qcRateMap=res.map; qcRateCount=res.count; qcRecompute(); });
     $q('qc_clearPaste').addEventListener('click',()=>{ $q('qc_modPaste').innerHTML=''; qcRateMap={}; qcRateCount=0; $q('qc_parsed').textContent='0'; $q('qc_matchedInfo').textContent=''; qcRecompute(); });
@@ -6209,11 +6115,8 @@ function quoteReset(){
   });
   // Clear the contenteditable mod paste area
   var mp=document.getElementById('qc_modPaste'); if(mp) mp.innerHTML='';
-  var cmr=document.getElementById('qc_ms_pct'); if(cmr) cmr.value='25';
-  var ngr=document.getElementById('qc_ms_notGst'); if(ngr) ngr.checked=false;
-  // Back to the default rent source and summary view
+  // Back to the default rent source
   if(typeof qcSwitchRentTab==='function') qcSwitchRentTab('modifiers');
-  if(typeof qcSwitchSummaryTab==='function') qcSwitchSummaryTab('summary');
   // Uncheck platform radios
   document.querySelectorAll('input[name="qc_platform_radio"]').forEach(function(r){ r.checked=false; });
   // Reset platform hidden select
@@ -6225,9 +6128,7 @@ function quoteReset(){
   var gr=document.getElementById('qc_gelRate'); if(gr) gr.value='';
   // Zero out summary values without destroying the HTML structure
   ['qc_rentBefore','qc_discountValue','qc_rentUsed','qc_gst','qc_gel',
-   'qc_fee','qc_markup','qc_linenTotal','qc_cleanTotal','qc_deepCleanTotal','qc_total',
-   'qc_ms_commAmt','qc_ms_ownerAmt','qc_ms_supp','qc_ms_deep','qc_ms_fee','qc_ms_gel','qc_ms_base',
-   'qc_ms_gstCredit','qc_ms_gstIrd','qc_ms_inHand','qc_ms_gstTotal'].forEach(function(id){
+   'qc_fee','qc_markup','qc_linenTotal','qc_cleanTotal','qc_deepCleanTotal','qc_total'].forEach(function(id){
     var e=document.getElementById(id); if(e) e.textContent='$0.00';
   });
   var sr=document.getElementById('qc_addChargesSummary'); if(sr) sr.innerHTML='';
@@ -6379,10 +6280,8 @@ function quoteGetState(){
       don: !!(document.getElementById('qc_discountOn')||{}).checked,
       dp: (document.getElementById('qc_discountPct')||{}).value||'0',
       gr: (document.getElementById('qc_gelRate')||{}).value||'',
-      rm: (function(){var t=document.querySelector('#qc_rentTabs .qc-rent-tab-active');return (t&&t.getAttribute('data-mode'))||'modifiers';})(),
-      nr: (document.getElementById('qc_nightlyRate')||{}).value||'',
-      cm: (document.getElementById('qc_ms_pct')||{}).value||'25',
-      ng: !!(document.getElementById('qc_ms_notGst')||{}).checked
+      rm: (function(){var t=document.querySelector('.qc-rent-tab-active');return (t&&t.getAttribute('data-mode'))||'modifiers';})(),
+      nr: (document.getElementById('qc_nightlyRate')||{}).value||''
   };
 }
 function quoteGenerateFile(){
@@ -6448,9 +6347,6 @@ function quoteApplyState(s){
   var mp=document.getElementById('qc_modPaste');
   if(mp&&s.mp){ mp.innerHTML=s.mp; }
   var nr=document.getElementById('qc_nightlyRate');if(nr)nr.value=s.nr||'';
-  // Older .bqt files predate the commission dropdown — fall back to the 25% default
-  var cm=document.getElementById('qc_ms_pct');if(cm)cm.value=s.cm||'25';
-  var ng=document.getElementById('qc_ms_notGst');if(ng)ng.checked=!!s.ng;
   // Older .bqt files predate the rent-source tabs — default them to modifiers
   if(typeof qcSwitchRentTab==='function') qcSwitchRentTab(s.rm==='nightly'?'nightly':'modifiers');
   setTimeout(function(){
