@@ -2277,7 +2277,7 @@ toggleFields();
               <button class="btn-secondary" id="qc_addChargeBtn" style="padding:5px 12px;font-size:12px;margin:0;width:auto;">+ Add</button>
             </div>
             <div id="qc_addChargeRows"><div data-dynamic="1" class="qc-charge-row qc-add-row" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-bottom: 8px;">
-      <div><label class="field-label">Charge Info</label><input class="qc-select qc-add-info" style="background-image:none;" placeholder="e.g. Pet fee" value=""></div>
+      <div><label class="field-label">Charge Info</label><input class="qc-select qc-add-info" style="background-image:none;" placeholder="Describe the charge" value=""></div>
       <div><label class="field-label">Amount (NZD)</label><input class="qc-select qc-add-amt" style="background-image:none;" placeholder="0.00" value=""></div>
       <button type="button" class="remove-charge-btn" title="Remove" style="margin-bottom:1px;">✕</button></div></div>
           </div>
@@ -2731,7 +2731,7 @@ function qcPlatformRadioChanged() {
     row.className='qc-charge-row qc-add-row';
     row.style.cssText='display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px;';
     row.innerHTML=`
-      <div><label class="field-label">Charge Info</label><input class="qc-select" style="background-image:none;" placeholder="e.g. Pet fee" value="${qcEscape(info)}"></div>
+      <div><label class="field-label">Charge Info</label><input class="qc-select" style="background-image:none;" placeholder="Describe the charge" value="${qcEscape(info)}"></div>
       <div><label class="field-label">Amount (NZD)</label><input class="qc-select qc-add-amt" style="background-image:none;" placeholder="0.00" value="${qcEscape(String(amt||''))}"></div>
       <button type="button" class="remove-charge-btn" title="Remove" style="margin-bottom:1px;">✕</button>`;
     row.querySelector('input:first-of-type').className += ' qc-add-info';
@@ -2993,6 +2993,8 @@ function qcPlatformRadioChanged() {
   window.qcGetPastePayload = qcGetPastePayload;
   window._qcSetRates = function(map, count) { qcRateMap = map; qcRateCount = count; };
   window.qcResetAll = qcResetAll;
+  // Back to a single empty additional-charge row
+  window.qcClearCharges = function(){ $q('qc_addChargeRows').innerHTML=''; $q('qc_addChargeRows').appendChild(qcRenderChargeRow()); };
   window.qcSwitchRentTab = qcSwitchRentTab;
 
   // Snapshot & restore for tutorial pre-fill
@@ -4231,7 +4233,7 @@ body.tut-active hr, body.tut-active .divider { visibility: hidden; }
     { sel: '#qc_countGrid',               title: 'Linen & Clean Count',            body: 'These boxes show how many linen and cleaning sets are included in the quote. When locked, they automatically match the number of 28-night bookings. If you unlock the counts above, you can manually set these — useful when linen or cleaning doesn\'t apply for every booking segment.', useField: false, forcePos: 'below' },
     { sel: '#qc_deepCleanCard',           title: 'End of Stay Deep Clean', forcePos: 'below',  body: 'For long-term bookings, an end-of-stay deep clean is added automatically. The checkbox lets you include or exclude it, and you can adjust the amount if needed. This only appears for long-term stays.', useField: false },
     { sel: '#qc_discountCard',            title: 'Long-Term Discount',     forcePos: 'below',  body: 'A discount is automatically applied based on the length of stay — the longer the booking, the higher the discount tier. The checkbox lets you toggle it on or off, and you can override the percentage manually if the situation requires it.', useField: false },
-    { sel: '#qc_addChargesSection',       title: 'Additional Charges',             body: 'Click + Add to include extras like pet fees or extra guest fees. Each gets a label and amount and is added to the total.', useField: false, forcePos: 'below' },
+    { sel: '#qc_addChargesSection',       title: 'Additional Charges',             body: 'Click + Add to include any extra charge. Type your own description and amount for each one — they are all added to the total.', useField: false, forcePos: 'below' },
     { sel: '#qc_modPaste',                title: 'Daily Modifiers Paste Area',     body: "Go to Enterprise, open the property's Daily Modifiers, copy the full table and paste it here. The calculator scans for the Day Price column automatically.", useCard: true, forcePos: 'below' },
     { sel: '#qc_parse',                   title: 'Parse Rates',                    body: "Click this after pasting. It reads each date's Day Price, matches it to your date range, and sums up the total rent.", useField: false, forcePos: 'below' },
     { sel: '#qc_parsedRow',               title: 'Parsed Rates Counter',           body: "Shows how many nightly rates were matched to your date range. Should equal the number of nights — if lower, check the paste includes all dates.", useField: false, forcePos: 'below' },
@@ -4260,7 +4262,7 @@ body.tut-active hr, body.tut-active .divider { visibility: hidden; }
     { sel: '#linenCleanRow',              title: 'Linen & Cleaning',     forcePos: 'right',              body: "Enter linen and cleaning for the new booking. For extensions these are hidden — you don't re-charge linen and cleaning for extension nights.", useField: false },
     { sel: '#fee2',                       title: 'Booking Fee (Auto)',   forcePos: 'right',            body: 'Calculated automatically at 7.1% of rent including GST, capped at $299. Nothing to enter here.' },
     { sel: '#amendFeeLabel',              title: 'Amendment Fee',        forcePos: 'right',                 body: 'Bachcare Direct only. Tick to add a $28.75 amendment fee — the admin charge when a guest requests a date change.', useField: false },
-    { sel: '#additionalChargeWrap',       title: 'Additional Charge',    forcePos: 'right',              body: "Use this to add anything extra to the breakdown — for example, an extra toiletry pack, a guest over the maximum occupancy, or a pet fee for a non-pet-friendly property. Enter a description and the amount.", useField: false },
+    { sel: '#additionalChargeWrap',       title: 'Additional Charge',    forcePos: 'right',              body: "Use this to add anything extra to the breakdown. Type your own description and the amount.", useField: false },
     { sel: '#adj_tile3',                  title: 'Outcome — Charge or Refund', forcePos: 'above',    body: 'The key result. Shows whether to charge the guest more or refund them, and the exact amount. Updates live as you enter figures.', useCard: true },
     { sel: '#tile1Box',                   title: 'Original Total Tile',  forcePos: 'right',           body: 'Shows the total cost of the original booking for comparison.', useField: false },
     { sel: '#tile2Box',                   title: 'New Total Tile',       forcePos: 'right',                body: 'Shows the total cost of the new booking once all rates and charges are entered.', useField: false },
@@ -6202,6 +6204,8 @@ function quoteReset(){
     var e=document.getElementById(id); if(e) e.textContent='$0.00';
   });
   var sr=document.getElementById('qc_addChargesSummary'); if(sr) sr.innerHTML='';
+  // Additional charges: back to one empty row so nothing carries into the next quote
+  if(typeof window.qcClearCharges==='function') window.qcClearCharges();
   // Trigger platform reset
   if(typeof qcPlatformRadioChanged==='function') qcPlatformRadioChanged();
 }
