@@ -2353,7 +2353,7 @@ toggleFields();
           </div>
           <div id="qc_allInCalc" style="margin-top:10px;padding:10px 12px;background:var(--surface-2);border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-secondary);line-height:1.7;">Set the dates and an all-inclusive rate to work back the rent.</div>
           <div class="notice hidden" id="qc_allInWarn" style="margin-top:10px;background:var(--warn-bg);border-color:var(--warn-border);color:#78350f;"></div>
-          <div class="helper-text" style="margin-top:8px;">For guests quoted one all-in price. The rent is <strong>worked backwards</strong> so that rent + GST + GEL + booking fee + markup + linen + cleaning + deep clean + additional charges equals the rate × nights. Set GEL, linen, cleaning and any extra charges as normal first — they come out of the all-in total.</div>
+          <div class="helper-text" style="margin-top:8px;">For guests quoted one all-in price. The rent is <strong>worked backwards</strong> so that rent + GST + GEL + booking fee + markup + linen + cleaning + deep clean + additional charges equals the rate × nights. Set GEL, linen, cleaning and any extra charges as normal first — they come out of the all-in total. No long-term discount applies on this tab; the deep clean is only added for stays over 28 nights.</div>
          </div>
         </div>
       </div>
@@ -2829,9 +2829,12 @@ function qcPlatformRadioChanged() {
     splits.forEach(x=>{ const li=document.createElement('li'); li.textContent=`Booking ${x.idx}: ${qcNz(qcParseDate(x.start.toISOString().slice(0,10))||x.start)} to ${qcNz(qcParseDate(x.end.toISOString().slice(0,10))||x.end)} (${x.nights} nights)`; ul.appendChild(li); });
     $q('qc_deepCleanCard').classList.toggle('hidden',!longTerm);
     qcUpdateCountsLock(bc);
-    const direct=p.key==='direct', showDiscount=longTerm&&direct;
+    // All-inclusive quotes are one agreed price: no long-term discount, and no
+    // 'OTAs don't get a discount' warning either since none is on offer.
+    const allIn=qcRentMode==='allin';
+    const direct=p.key==='direct', showDiscount=longTerm&&direct&&!allIn;
     $q('qc_discountCard').classList.toggle('hidden',!showDiscount);
-    const warnNoDisc=longTerm&&p.key&&!direct;
+    const warnNoDisc=longTerm&&p.key&&!direct&&!allIn;
     if(!warnNoDisc){ $q('qc_noLtModal').classList.add('hidden'); qcNoDiscShown=false; }
     let discountPct=0, discountApplied=false;
     if(showDiscount){
