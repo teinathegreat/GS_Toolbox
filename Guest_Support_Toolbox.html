@@ -781,10 +781,6 @@ input[type="date"].qc-select { position: relative; }
     Date Change Calculator
   </button>
 
-  <button class="tool-nav-btn" onclick="switchTool(&#39;msp&#39;, this)">
-    <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
-    MSP Directory
-  </button>
   <button class="tool-nav-btn" onclick="switchTool(&#39;weather&#39;, this)">
     <svg viewBox="0 0 20 20" fill="currentColor"><path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"></path></svg>
     Weather &amp; FM
@@ -2409,12 +2405,10 @@ function switchTool(name, btn) {
   document.querySelectorAll('.tool-nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tool-' + name).classList.add('active');
   btn.classList.add('active');
-  // Re-render MSP cards when tab becomes active
-  if(name === 'msp' && typeof window.mspFilter === 'function') window.mspFilter();
   // Show/hide the How To button — only for tools that have a tutorial
   var tutBtn = document.getElementById('globalTutorialBtn');
   if (tutBtn) {
-    var hasTutorial = (name === 'quote' || name === 'adjustment' || name === 'cancellation'); if(name==='msp'){var tutBtnEl=document.getElementById('globalTutorialBtn');if(tutBtnEl)tutBtnEl.style.display='none';}
+    var hasTutorial = (name === 'quote' || name === 'adjustment' || name === 'cancellation');
     tutBtn.style.display = hasTutorial ? 'flex' : 'none';
   }
 }
@@ -4572,67 +4566,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
-<div class="tool-panel" id="tool-msp">
-<div style="background:linear-gradient(135deg,#5b21b6,#4c1d95);border-radius:0;padding:20px 28px;color:#fff;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
-  <div>
-    <div style="font-size:17px;font-weight:800;margin-bottom:6px;letter-spacing:-0.02em;">👷 MSP Directory</div>
-    <div style="font-size:13px;opacity:0.85;line-height:1.6;">Search by name, area, email or number. MSPs in the same colour group are in nearby areas — useful when one isn't answering.</div>
-  </div>
-</div>
-<div style="max-width:1100px;margin:28px auto;padding:0 20px 40px;">
-
-  <!-- Search bar -->
-  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;align-items:center;">
-    <div style="flex:1;min-width:220px;position:relative;">
-      <svg viewBox="0 0 20 20" fill="currentColor" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-muted);pointer-events:none;"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
-      <input id="msp_search" type="text" placeholder="Search name, area, email or number…" oninput="mspFilter()" style="width:100%;box-sizing:border-box;padding:10px 12px 10px 36px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;color:var(--text-primary);background:var(--surface);outline:none;">
-    </div>
-    <select id="msp_rsm" onchange="mspFilter()" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;color:var(--text-primary);background:var(--surface);outline:none;cursor:pointer;">
-      <option value="">All RSMs</option>
-      <option>Andrea</option>
-      <option>Ash</option>
-      <option>Eve</option>
-      <option>Siobhan</option>
-    </select>
-    <select id="msp_region" onchange="mspFilter()" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;color:var(--text-primary);background:var(--surface);outline:none;cursor:pointer;">
-      <option value="">All Regions</option>
-    </select>
-    <button onclick="mspClearFilters()" style="padding:10px 16px;background:var(--surface-2);color:var(--text-secondary);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Clear</button>
-  </div>
-
-  <!-- Unlock banner -->
-  <div id="msp_unlock_banner" style="display:none;align-items:center;gap:10px;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:14px;font-size:13px;color:#92400e;">
-    <span style="font-size:18px;">🔓</span>
-    <span><strong>Contact details unlocked</strong> — visible to you only in this session. Triple-click the results count again to hide.</span>
-  </div>
-  <!-- Results count + group legend toggle -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-    <div id="msp_count" style="font-size:13px;color:var(--text-secondary);font-weight:600;"></div>
-    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);">
-      <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:linear-gradient(135deg,#fde8e8,#dceeff);border:1px solid var(--border);"></span>
-      Click any card to see MSPs within ~30 min drive who could cover the area
-    </div>
-  </div>
-
-  <!-- MSP Grid -->
-  <div id="msp_grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;"></div>
-  <div id="msp_empty" style="display:none;text-align:center;padding:60px 20px;color:var(--text-muted);">
-    <div style="font-size:36px;margin-bottom:12px;">🔍</div>
-    <div style="font-size:14px;font-weight:600;">No MSPs match your search</div>
-    <div style="font-size:13px;margin-top:4px;">Try a different name, area or number</div>
-  </div>
-
-  <!-- Nearby MSPs panel (shows when clicking a card) -->
-  <div id="msp_nearby_panel" style="display:none;margin-top:24px;border:1.5px solid var(--brand);border-radius:var(--radius);overflow:hidden;">
-    <div style="background:linear-gradient(135deg,#5b21b6,#4c1d95);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
-      <div style="color:#fff;font-weight:800;font-size:14px;" id="msp_nearby_title">Nearby MSPs</div>
-      <button onclick="mspCloseNearby()" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:14px;font-family:inherit;">✕</button>
-    </div>
-    <div id="msp_nearby_grid" style="padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;background:var(--surface-2);"></div>
-  </div>
-
-</div>
-</div><!-- end tool-msp -->
 <div class="tool-panel" id="tool-weather">
   <div style="background:linear-gradient(135deg,#5b21b6,#4c1d95);border-radius:0;padding:20px 28px;margin-bottom:20px;color:#fff;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
       <div>
@@ -5900,111 +5833,6 @@ evRefresh();
 </script>
 
 
-<script>
-// ── MSP DIRECTORY ──
-(function(){
-  var MSP_DATA = [{"rsm": "Siobhan", "region": "Far North", "area": "Karikari Peninsula, Mangonui", "startDate": "13/04/2026", "firstName": "Emma", "lastName": "Auimatagi", "e": "YmVhY2gua2FyaWthcmlAYmFjaGNhcmUubno=", "m": "MDIxIDA2MiAwOTY4", "l": "", "proximityGroup": 0}, {"rsm": "Siobhan", "region": "Far North", "area": "Tauranga Bay", "startDate": "01/12/2020", "firstName": "Melanie", "lastName": "Chandler-Winters", "e": "aGFwcHkudGF1cmFuZ2FiYXlAYmFjaGNhcmUubno=", "m": "MDI3IDY2OCA1Mzg0", "l": "MDkgNDA1IDEwMjI=", "proximityGroup": 0}, {"rsm": "Siobhan", "region": "Far North", "area": "Kerikeri and Paihia", "startDate": "26/11/2024", "firstName": "Katherine (Kathy)", "lastName": "Renner", "e": "c3RheS5rZXJpa2VyaUBiYWNoY2FyZS5ueg==", "m": "MDIxIDE5OCAzMDAx", "l": "", "proximityGroup": 1}, {"rsm": "Siobhan", "region": "Far North", "area": "Kerikeri", "startDate": "04/12/2023", "firstName": "Raewyn", "lastName": "Schwieters", "e": "ZW5qb3kua2VyaWtlcmlAYmFjaGNhcmUubno=", "m": "MDI3NDI4MTY3Nw==", "l": "", "proximityGroup": 1}, {"rsm": "Siobhan", "region": "Far North", "area": "Paihia and Opua", "startDate": "19/02/2024", "firstName": "Deborah", "lastName": "Murray", "e": "ZW5qb3kucGFpaGlhQGJhY2hjYXJlLm56", "m": "MDIwIDQxMjcgMTMwNQ==", "l": "", "proximityGroup": 1}, {"rsm": "Siobhan", "region": "Far North", "area": "Russell", "startDate": "19/08/2024", "firstName": "Gabrielle", "lastName": "Hornblow", "e": "dW53aW5kLnJ1c3NlbGxAYmFjaGNhcmUubno=", "m": "MDI3IDIzNCA2OTY1", "l": "", "proximityGroup": 1}, {"rsm": "Siobhan", "region": "Far North", "area": "Russell", "startDate": "16/08/2024", "firstName": "Samantha Katrina", "lastName": "Beardsell", "e": "Y2hpbGwucnVzc2VsbEBiYWNoY2FyZS5ueg==", "m": "MDIyIDYxOSA0NDU3IChXb3JrIHBob25lKSA=", "l": "Mm5kIG1vYmlsZSAocGVyc29uYWwpIDJuZCBwb2ludCBvZiBjb250YWN0IDAyMSAwMjU4IDkyNDIgMDkgNDAzIDc4NzYgKHBsZWFzZSB1c2UgaWYgc2hlIGRvZXMgbm90IGFuc3dlciBhcyByZWNlcHRpb24gaXMgYmFkIGF0IGhlciBob3VzZSk=", "proximityGroup": 1}, {"rsm": "Siobhan", "region": "Northland", "area": "Tutukaka", "startDate": "02/11/2025", "firstName": "Gemma", "lastName": "Hales", "e": "dmlzaXQudHV0dWtha2FAYmFjaGNhcmUubno=", "m": "MDIyIDQwMSAxMzU2", "l": "", "proximityGroup": 2}, {"rsm": "Siobhan", "region": "Northland", "area": "Tutukaka", "startDate": "01/11/2025", "firstName": "Tina", "lastName": "Yendell", "e": "aGFwcHkudHV0dWtha2FAYmFjaGNhcmUubno=", "m": "MDI3IDQ4OCAxNzIy", "l": "", "proximityGroup": 2}, {"rsm": "Siobhan", "region": "Northland", "area": "Ruakaka", "startDate": "15/02/2022", "firstName": "Matt & Rochelle", "lastName": "Crispin & Russell", "e": "dGVhbS5ydWFrYWthQGJhY2hjYXJlLm56", "m": "MDIxIDk5MiA0MjM=", "l": "MDI3IDQxMSA0NDg3", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Northland", "area": "Langs Beach / Waipu / Ruakaka / One Tree Point", "startDate": "08/11/2014", "firstName": "Jesse", "lastName": "Williams", "e": "amVhbmllLmplc3NlQGJhY2hjYXJlLm56", "m": "MDIxIDEyNCA2MTM1", "l": "MDkgNDMyIDA0NTE=", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Northland", "area": "Mangawhai", "startDate": "17/02/2025", "firstName": "Sylvia", "lastName": "McClunie", "e": "c3dpbS5tYW5nYXdoYWlAYmFjaGNhcmUubno=", "m": "MDIxIDIwMiAyNTY3", "l": "", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Northland", "area": "Mangawhai", "startDate": "19/10/2023", "firstName": "Sarah", "lastName": "McCord", "e": "bG92ZS5tYW5nYXdoYWlAYmFjaGNhcmUubno=", "m": "MDIxIDU2NiAwOTI=", "l": "", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Northland", "area": "Mangawhai", "startDate": "22/06/2022", "firstName": "Janine", "lastName": "Crack", "e": "cmVsYXgubWFuZ2F3aGFpQGJhY2hjYXJlLm56", "m": "MDIwIDQwMCAzMjk0Mg==", "l": "", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Northland", "area": "Mangawhai", "startDate": "03/03/2025", "firstName": "Debra", "lastName": "Marvin", "e": "YmVhY2gubWFuZ2F3aGFpQGJhY2hjYXJlLm56", "m": "MDI3IDQyMSAyOTEw", "l": "", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Northland", "area": "Mangawhai", "startDate": "23/10/2024", "firstName": "Kaylin", "lastName": "Vrettos", "e": "YWR2ZW50dXJlLm1hbmdhd2hhaUBiYWNoY2FyZS5ueg==", "m": "MDIwIDQxMjQgNDU4NQ==", "l": "", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Northland", "area": "Mangawhai", "startDate": "08/01/2025", "firstName": "Kathryn", "lastName": "Galvin", "e": "bWFnaWNhbC5tYW5nYXdoYWlAYmFjaGNhcmUubno=", "m": "MDIxIDIzMiA3NDU2", "l": "", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Auckland", "area": "Leigh/Omaha", "startDate": "30/06/2025", "firstName": "Heather", "lastName": "Esplin", "e": "c3RheS5sZWlnaEBiYWNoY2FyZS5ueg==", "m": "MDI3IDIzNiA1NzAx", "l": "", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Auckland", "area": "Matakana", "startDate": "03/03/2025", "firstName": "Georgia", "lastName": "Baker", "e": "ZW5qb3kubWF0YWthbmFAYmFjaGNhcmUubno=", "m": "MDIxIDY2MiA0ODI=", "l": "", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Auckland", "area": "Omaha/Leigh/Snells Beach", "startDate": "10/10/2025", "firstName": "Angela and Darren", "lastName": "Walton", "e": "c3RheS5vbWFoYUBiYWNoY2FyZS5ueg==", "m": "MDIxODI1MzA1IChBbmdlbGEp", "l": "MDIxIDI0NiA2NDI0IChEYXJyZW4p", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Auckland", "area": "Hibiscus Coast", "startDate": "28/11/2025", "firstName": "Jovana", "lastName": "Vasilic", "e": "dmlzaXQuaGliaXNjdXNjb2FzdEBiYWNoY2FyZS5ueg==", "m": "MDIyIDQwNiAyMjc0", "l": "", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Auckland", "area": "Auckland North Shore", "startDate": "01/11/2025", "firstName": "Anthea", "lastName": "Reynolds", "e": "c3RheS5hdWNrbGFuZEBiYWNoY2FyZS5ueg==", "m": "MDIyIDAxMyA2NDc1", "l": "", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Auckland", "area": "Auckland CBD and Piha", "startDate": "14/08/2023", "firstName": "Kelly", "lastName": "Tome", "e": "ZGlzY292ZXIuYXVja2xhbmRAYmFjaGNhcmUubno=", "m": "MDIxIDIwNiAyMzM2", "l": "", "proximityGroup": 3}, {"rsm": "Siobhan", "region": "Auckland", "area": "Waiheke", "startDate": "17/10/2023", "firstName": "Rocio", "lastName": "Frontera", "e": "dmlzaXQud2FpaGVrZUBiYWNoY2FyZS5ueg==", "m": "MDIwIDQxNzQgMjA1MQ==", "l": "", "proximityGroup": 4}, {"rsm": "Siobhan", "region": "Auckland", "area": "Waiheke", "startDate": "17/06/2016", "firstName": "Sue", "lastName": "Winias", "e": "dGVhbS53YWloZWtlQGJhY2hjYXJlLm56", "m": "MDI3IDQ5NCAwOTkw", "l": "MDkgMzcyIDc2NzI=", "proximityGroup": 4}, {"rsm": "Siobhan", "region": "Auckland", "area": "Waiheke", "startDate": "08/09/2021", "firstName": "Oksana", "lastName": "Kelly", "e": "d2FpaGVrZS5lbmpveUBiYWNoY2FyZS5ueg==", "m": "MDIxIDE1OCA0NTkx", "l": "", "proximityGroup": 4}, {"rsm": "Siobhan", "region": "Waikato", "area": "Raglan", "startDate": "15/09/2025", "firstName": "Rhiannon", "lastName": "Spedding", "e": "c3VyZi5yYWdsYW5AYmFjaGNhcmUubno=", "m": "MDIxIDI4NSAyODU5", "l": "", "proximityGroup": 5}, {"rsm": "Andrea", "region": "Coromandel", "area": "Whangapoua / Coromandel Town", "startDate": "05/02/2025", "firstName": "Kana", "lastName": "Ten Boom", "e": "Y2hpbGwud2hhbmdhcG91YUBiYWNoY2FyZS5ueg==", "m": "MDIxIDIwNiA3MTU1", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Matarangi", "startDate": "25/03/2025", "firstName": "Seara", "lastName": "Tukiri", "e": "YmVhY2gubWF0YXJhbmdpQGJhY2hjYXJlLm56", "m": "MDIxIDk0NzIyMQ==", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Matarangi / Opito Bay / Kuaotunu", "startDate": "10/01/2021", "firstName": "Deb", "lastName": "Carr", "e": "dHJhdmVsLm1hdGFyYW5naUBiYWNoY2FyZS5ueg==", "m": "MDI3IDI0MyAzODM5", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Whitianga", "startDate": "23/04/2024", "firstName": "Sarah", "lastName": "Trethowen", "e": "dW53aW5kLndoaXRpYW5nYUBiYWNoY2FyZS5ueg==", "m": "MDI3IDM2NSA0MDc1", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Cooks Beach", "startDate": "01/07/2025", "firstName": "Sabrina", "lastName": "Wilson", "e": "YmVhY2guY29va3NiZWFjaEBiYWNoY2FyZS5ueg==", "m": "MDI3MzQxMDYwOQ==", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Hahei/Tairua/Pauanui", "startDate": "22/11/2023", "firstName": "Colleen", "lastName": "McCarthy", "e": "dW53aW5kLnRhaXJ1YUBiYWNoY2FyZS5ueg==", "m": "MDI3IDI3NyAwODg0", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Pauanui", "startDate": "02/05/2025", "firstName": "Heather", "lastName": "Scott", "e": "YmVhY2gucGF1YW51aUBiYWNoY2FyZS5ueg==", "m": "MDI3IDU3OCA2MDE2", "l": "MDIxIDA4MSA2NjQ3MCB0ZW1wb3JhcnkgcGhvbmUgbnVtYmVy", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Pauanui", "startDate": "14/07/25", "firstName": "Aloise", "lastName": "Wigg", "e": "bG92ZS5wYXVhbnVpQGJhY2hjYXJlLm56IDxsb3ZlLnBhdWFudWlAYmFjaGNhcmUubno+", "m": "MDIxIDY2MiA1MjA=", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Pauanui/Tairua", "startDate": "05/01/2026", "firstName": "Angelle", "lastName": "Stevenson", "e": "ZnVuLnBhdWFudWlAYmFjaGNhcmUubno=", "m": "Mjc0MzEzOTgz", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Whangamata/Whiritoa", "startDate": "01/10/2024", "firstName": "Carina", "lastName": "Egerlind", "e": "Y2xzLndoYW5nYW1hdGFAZ21haWwuY29t", "m": "MDI4IDg1MSA1ODA4NQ==", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Whangamata", "startDate": "20/07/2015", "firstName": "Katrina", "lastName": "Teichelman", "e": "a2F0cmluYUBiYWNoY2FyZS5ueg==", "m": "MDI3IDQ4NSAwNTc1", "l": "MDcgODY1IDg4NDk=", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Onemana/Opoutere", "startDate": "16/02/2026", "firstName": "Cailin", "lastName": "Beukes", "e": "dmlzaXQub25lbWFuYUBiYWNoY2FyZS5ueg==", "m": "MDI3IDM3NiAwMDk1", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Waihi Beach", "startDate": "26/01/2023", "firstName": "Anna", "lastName": "MacDonald", "e": "Y2hpbGwud2FpaGliZWFjaEBiYWNoY2FyZS5ueg==", "m": "MDIxIDM0NyA2NjA=", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Waihi Beach", "startDate": "28/07/2025", "firstName": "Meihui", "lastName": "Wang", "e": "dmliZS53YWloaWJlYWNoQGJhY2hjYXJlLm56", "m": "MDIxMDI3NjI0NTY=", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Waihi Beach", "startDate": "28/01/2026", "firstName": "Hannah", "lastName": "Olsen", "e": "bG92ZS53YWloaUBiYWNoY2FyZS5ueg==", "m": "MDIyIDQyNiA0NDE0", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Coromandel", "area": "Waihi Beach", "startDate": "17/02/2025", "firstName": "Camielia", "lastName": "Cox", "e": "c3dpbS53YWloaWJlYWNoQGJhY2hjYXJlLm56", "m": "MDI3IDU3MCAzOTMx", "l": "", "proximityGroup": 6}, {"rsm": "Andrea", "region": "Bay of Plenty", "area": "Tauranga/Mount Maunganui", "startDate": "02/11/2021", "firstName": "Claudine", "lastName": "Mulvaney", "e": "c3RheS5tb3VudG1hdW5nYW51aUBiYWNoY2FyZS5ueg==", "m": "MDI3IDIwODggMzg5", "l": "MDcgNTUyIDQzNDQ=", "proximityGroup": 7}, {"rsm": "Andrea", "region": "Bay of Plenty", "area": "Mount Maunganui", "startDate": "04/11/2024", "firstName": "Rebecca", "lastName": "Hanksinon", "e": "cmVzdC5tb3VudG1hdW5nYW51aUBiYWNoY2FyZS5ueg==", "m": "MDIwIDQwOTUgMjM5Mw==", "l": "", "proximityGroup": 7}, {"rsm": "Andrea", "region": "Bay of Plenty", "area": "Papamoa", "startDate": "29/08/2025", "firstName": "Nicole", "lastName": "Kettle", "e": "dmlzaXQudGF1cmFuZ2FAYmFjaGNhcmUubno=", "m": "MDIyMDc3NDMxMw==", "l": "", "proximityGroup": 7}, {"rsm": "Andrea", "region": "Bay of Plenty", "area": "Ohope Beach", "startDate": "29/08/2022", "firstName": "Catherine", "lastName": "Jones", "e": "ZGlzY292ZXIub2hvcGVAYmFjaGNhcmUubno=", "m": "MDI3IDMwOCA1OTYw", "l": "", "proximityGroup": 8}, {"rsm": "Andrea", "region": "Bay of Plenty", "area": "Rotorua", "startDate": "16/03/2026", "firstName": "Sachi", "lastName": "Eustace-Smith", "e": "Z2VvdGhlcm1hbC5yb3RvcnVhQGJhY2hjYXJlLm56", "m": "MDIxIDczNSAxMzE=", "l": "", "proximityGroup": 9}, {"rsm": "Andrea", "region": "Bay of Plenty", "area": "Rotorua", "startDate": "19/09/2025", "firstName": "Charles", "lastName": "Te Kowhai", "e": "dmliZS5yb3RvcnVhQGJhY2hjYXJlLm56", "m": "MDI3MjA2NDY1MA==", "l": "MDIyMzg3MjgyNiBBbmFoZXJhIFdpZmUgJiBtYWluIGNvbnRhY3Q=", "proximityGroup": 9}, {"rsm": "Andrea", "region": "Bay of Plenty", "area": "Rotorua", "startDate": "29/08/2025", "firstName": "Denise", "lastName": "Holmes", "e": "bGFrZS5yb3RvcnVhQGJhY2hjYXJlLm56", "m": "MDIxIDkxOSA3MTA=", "l": "", "proximityGroup": 9}, {"rsm": "Ash", "region": "Central North Island", "area": "Taupō", "startDate": "", "firstName": "Taupo", "lastName": "Hub", "e": "dGF1cG9AYmFjaGNhcmUuY28ubno=", "m": "VGF1cG8gSHViOiAwMjIgNDY3IDc4ODU=", "l": "UENTOiAwMjIgMDc1IDUwMzM=", "proximityGroup": 10}, {"rsm": "Andrea", "region": "Central North Island", "area": "Mangakino", "startDate": "19/12/2022", "firstName": "Louise", "lastName": "Rata-Hurst", "e": "dW53aW5kLm1hbmdha2lub0BiYWNoY2FyZS5ueg==", "m": "MDI3IDMwMCA5MDg2", "l": "", "proximityGroup": 11}, {"rsm": "Andrea", "region": "Central North Island", "area": "Omori/Kuratau/Pukawa Bay/ Turangi", "startDate": "02/10/2023", "firstName": "Daniel & Susan", "lastName": "Maher & Gaha", "e": "dHJhdmVsLmt1cmF0YXVAYmFjaGNhcmUubno=", "m": "MDIxIDE4NyA3OTE4", "l": "", "proximityGroup": 12}, {"rsm": "Andrea", "region": "Central North Island", "area": "National Park/Ohakune", "startDate": "28/07/2025", "firstName": "Simone", "lastName": "Talbot", "e": "c3RheS5uYXRpb25hbHBhcmtAYmFjaGNhcmUubno=", "m": "Mjc0MTI5OTE0", "l": "", "proximityGroup": 13}, {"rsm": "Andrea", "region": "Central North Island", "area": "Ohakune", "startDate": "01/10/2021", "firstName": "Alysha", "lastName": "Howe", "e": "dHJhdmVsLm9oYWt1bmVAYmFjaGNhcmUubno=", "m": "MDI3IDc4OCAwMDg1", "l": "", "proximityGroup": 13}, {"rsm": "Andrea", "region": "Central North Island", "area": "Ohakune/Rangataua", "startDate": "01/10/2021", "firstName": "Selena", "lastName": "Anderson", "e": "ZGlzY292ZXIub2hha3VuZUBiYWNoY2FyZS5ueg==", "m": "MDI3IDc4OSA3OTcy", "l": "", "proximityGroup": 13}, {"rsm": "Andrea", "region": "Central North Island", "area": "Ohakune", "startDate": "30/09/2022", "firstName": "Evie", "lastName": "Symonds", "e": "ZXhwbG9yZS5vaGFrdW5lQGJhY2hjYXJlLm56", "m": "MDIyIDQyMSA3Nzg5", "l": "", "proximityGroup": 13}, {"rsm": "Siobhan", "region": "Hawkes Bay", "area": "Hastings", "startDate": "05/05/2021", "firstName": "Sonja", "lastName": "van Seventer", "e": "ZXhwbG9yZS5oYXdrZXNiYXlAYmFjaGNhcmUubno=", "m": "MDI3IDM0MiAyODk0", "l": "", "proximityGroup": 14}, {"rsm": "Siobhan", "region": "Hawkes Bay", "area": "Havelock North", "startDate": "27/10/2023", "firstName": "Ruline", "lastName": "Le Roux", "e": "bG92ZS5oYXdrZXNiYXlAYmFjaGNhcmUubno=", "m": "MDIxIDA4NjAgNjQ0OQ==", "l": "", "proximityGroup": 14}, {"rsm": "Siobhan", "region": "Hawkes Bay", "area": "Napier", "startDate": "29/04/2026", "firstName": "Christel", "lastName": "Eva", "e": "dHJhdmVsLm5hcGllckBiYWNoY2FyZS5ueg==", "m": "MDIxIDQ1NiA0MDc=", "l": "", "proximityGroup": 14}, {"rsm": "Siobhan", "region": "Hawkes Bay", "area": "Napier", "startDate": "30/04/2026", "firstName": "Suzanne", "lastName": "Blanch", "e": "c3RheS5uYXBpZXJAYmFjaGNhcmUubno=", "m": "MDI3IDIxNSA3MzMz", "l": "", "proximityGroup": 14}, {"rsm": "Siobhan", "region": "Taranaki", "area": "Taranaki", "startDate": "01/11/2025", "firstName": "Patricia", "lastName": "Cronin", "e": "aG9saWRheS50YXJhbmFraUBiYWNoY2FyZS5ueg==", "m": "MDIxIDA4MiA4MDQ4MA==", "l": "", "proximityGroup": 15}, {"rsm": "Siobhan", "region": "Wellington - Wairarapa", "area": "Foxton, Levin and Otaki", "startDate": "21/07/2025", "firstName": "Alana", "lastName": "Cioffi", "e": "Y2hpbGwuZm94dG9uQGJhY2hjYXJlLm56", "m": "MDIxIDI0NyA3NzQx", "l": "", "proximityGroup": 16}, {"rsm": "Siobhan", "region": "Wellington - Wairarapa", "area": "Waikanae", "startDate": "09/12/2024", "firstName": "Monique", "lastName": "MacPherson", "e": "dmlzaXQud2Fpa2FuYWVAYmFjaGNhcmUubno=", "m": "MDIwIDQwMjAgMzcxMA==", "l": "", "proximityGroup": 17}, {"rsm": "Siobhan", "region": "Wellington - Wairarapa", "area": "Waikanae", "startDate": "06/07/2025", "firstName": "Phillippa", "lastName": "Macfarlane", "e": "dW53aW5kLndhaWthbmFlQGJhY2hjYXJlLm56", "m": "MDI3IDg2MSA5OTkx", "l": "", "proximityGroup": 17}, {"rsm": "Siobhan", "region": "Wellington - Wairarapa", "area": "Martinborough", "startDate": "13/01/2020", "firstName": "Kylie", "lastName": "Richards", "e": "ZW5qb3kubWFydGluYm9yb3VnaEBiYWNoY2FyZS5ueg==", "m": "MDIxIDA3OSA5OTc1", "l": "", "proximityGroup": 18}, {"rsm": "Siobhan", "region": "Wellington - Wairarapa", "area": "Greytown", "startDate": "27/03/2026", "firstName": "Ben", "lastName": "Milne", "e": "aGFwcHkuZ3JleXRvd25AYmFjaGNhcmUubno=", "m": "MDIyIDE3MCAyOTc4", "l": "", "proximityGroup": 18}, {"rsm": "Eve", "region": "Marlborough - Tasman", "area": "Collingwood", "startDate": "01/10/2021", "firstName": "Amanda", "lastName": "Chilcott", "e": "ZGlzY292ZXIuY29sbGluZ3dvb2RAYmFjaGNhcmUubno=", "m": "MDI3IDk1OCA1OTYz", "l": "MDMgNTI0IDgzMTA=", "proximityGroup": 19}, {"rsm": "Eve", "region": "Marlborough - Tasman", "area": "Golden Bay", "startDate": "21/08/2025", "firstName": "Robert", "lastName": "Frese", "e": "ZXhwbG9yZS5nb2xkZW5iYXlAYmFjaGNhcmUubno=", "m": "MDIyIDUxMCAyMDY5", "l": "", "proximityGroup": 19}, {"rsm": "Eve", "region": "Marlborough - Tasman", "area": "Kaiteriteri", "startDate": "09/03/2026", "firstName": "Gina and Rebecca", "lastName": "Robinson and Forscutt", "e": "bG92ZS5rYWl0ZXJpdGVyaUBiYWNoY2FyZS5ueg==", "m": "MDIyIDA3MiAyNjY0", "l": "", "proximityGroup": 20}, {"rsm": "Eve", "region": "Marlborough - Tasman", "area": "Nelson & Mapua", "startDate": "15/12/2023", "firstName": "Marcela", "lastName": "Vargas", "e": "ZXhwbG9yZS5tYXB1YUBiYWNoY2FyZS5ueg==", "m": "MDIxIDE4MCAyNDA2", "l": "", "proximityGroup": 21}, {"rsm": "Eve", "region": "Marlborough - Tasman", "area": "Marlborough Sounds", "startDate": "04/05/2021", "firstName": "Sandy", "lastName": "Templeman", "e": "ZXhwbG9yZS5tYXJsYm9yb3VnaHNvdW5kc0BiYWNoY2FyZS5ueg==", "m": "MDI3IDQ0NyAwNzYx", "l": "MDMgNTc0IDIzMDc=", "proximityGroup": 22}, {"rsm": "Eve", "region": "Marlborough - Tasman", "area": "Blenheim", "startDate": "08/12/2025", "firstName": "Azalea", "lastName": "Hayes", "e": "aGFwcHkuYmxlbmhlaW1AYmFjaGNhcmUubno=", "m": "MDI3IDg0MSA4NDg0", "l": "", "proximityGroup": 22}, {"rsm": "Eve", "region": "Marlborough - Tasman", "area": "Picton", "startDate": "30/06/2025", "firstName": "Chanel", "lastName": "Brydon", "e": "dmlzaXQucGljdG9uQGJhY2hjYXJlLm56", "m": "MDIxIDU0NSAyMzI=", "l": "", "proximityGroup": 22}, {"rsm": "Eve", "region": "Marlborough - Tasman", "area": "Picton", "startDate": "30/06/2022", "firstName": "Jacqueline", "lastName": "Renz", "e": "ZXhwbG9yZS5waWN0b25AYmFjaGNhcmUubno=", "m": "MDIxMDY3NTg5NA==", "l": "", "proximityGroup": 22}, {"rsm": "Eve", "region": "Marlborough - Tasman", "area": "Blenheim", "startDate": "14/03/2012", "firstName": "Eveline", "lastName": "Apthorp", "e": "aG9saWRheS5ibGVuaGVpbUBiYWNoY2FyZS5ueg==", "m": "MDI3IDQwOCAxMzIz", "l": "MDMgNTcwIDIyMTM=", "proximityGroup": 22}, {"rsm": "Eve", "region": "Canterbury", "area": "Kaikoura", "startDate": "31/07/2025", "firstName": "Karina", "lastName": "Williamson", "e": "cmVsYXgua2Fpa291cmFAYmFjaGNhcmUubno=", "m": "MDI3IDkxMCA0MDI1", "l": "", "proximityGroup": 23}, {"rsm": "Eve", "region": "Canterbury", "area": "Hanmer Springs", "startDate": "15/07/2024", "firstName": "Jing", "lastName": "Yi Toh", "e": "c3RheS5oYW5tZXJzcHJpbmdzQGJhY2hjYXJlLm56", "m": "MDIxIDAyNDggNzE3Ng==", "l": "", "proximityGroup": 24}, {"rsm": "Eve", "region": "Canterbury", "area": "Christchurch", "startDate": "05/09/2022", "firstName": "Sheryl", "lastName": "Cooper (was Hansen)", "e": "c3RheS5jaHJpc3RjaHVyY2hAYmFjaGNhcmUubno=", "m": "MDI3IDkxNCA0MjUw", "l": "", "proximityGroup": 25}, {"rsm": "Eve", "region": "Canterbury", "area": "Christchurch", "startDate": "10/02/2025", "firstName": "Jonathon", "lastName": "Fleming", "e": "ZXhwbG9yZS5jaHJpc3RjaHVyY2hAYmFjaGNhcmUubno=", "m": "MDI3IDMxMyA0NDY3", "l": "", "proximityGroup": 25}, {"rsm": "Eve", "region": "Canterbury", "area": "Diamond Harbour, New Zealand", "startDate": "31/10/2018", "firstName": "Tracey", "lastName": "Fisher", "e": "ZW5qb3kuZGlhbW9uZGhhcmJvdXJAYmFjaGNhcmUubno=", "m": "MDI3IDc1NSAyMDE4", "l": "", "proximityGroup": 25}, {"rsm": "Eve", "region": "Canterbury", "area": "Akaroa", "startDate": "01/05/2025", "firstName": "Dee", "lastName": "Farnell", "e": "Y2hpbGwuYWthcm9hQGJhY2hjYXJlLm56", "m": "MDI3IDM2NSA3MzgxIChEZWUtIG1haW4gY29udGFjdCk=", "l": "MDI3IDI1OCA2NDU5IChDYWxsdW0gaWYgRGVlIGlzIG5vdCBhdmFpbGJsZSk=", "proximityGroup": 26}, {"rsm": "Eve", "region": "Canterbury", "area": "Akaroa", "startDate": "17/02/2021", "firstName": "Nicola", "lastName": "Reid", "e": "ZXhwbG9yZS5ha2Fyb2FAYmFjaGNhcmUubno=", "m": "MDIyIDY5NiA4OTI2", "l": "", "proximityGroup": 26}, {"rsm": "Eve", "region": "Queenstown - Lakes", "area": "Wanaka AND HAWEA", "startDate": "14/07/2025", "firstName": "Lucielle", "lastName": "Rocha", "e": "dG91ci53YW5ha2FAYmFjaGNhcmUubno=", "m": "MDI3MjI2Nzc0OQ==", "l": "", "proximityGroup": 27}, {"rsm": "Eve", "region": "Queenstown - Lakes", "area": "Wanaka", "startDate": "30/11/2022", "firstName": "Sachi", "lastName": "Thapa", "e": "dW53aW5kLndhbmFrYUBiYWNoY2FyZS5ueg==", "m": "MDIxIDIxNCA5MzIw", "l": "TGF4bWFuOiAwMjEwMjE3NzExMA==", "proximityGroup": 27}, {"rsm": "Eve", "region": "Queenstown - Lakes", "area": "Wanaka", "startDate": "01/12/2025", "firstName": "Kirstin", "lastName": "Stewart", "e": "c2tpLndhbmFrYUBiYWNoY2FyZS5ueg==", "m": "MDI3IDUxMSA1MTI0", "l": "", "proximityGroup": 27}, {"rsm": "Eve", "region": "Queenstown - Lakes", "area": "Wanaka AND ALBERT TOWN", "startDate": "02/12/2025", "firstName": "Suzanne", "lastName": "Mulvihil", "e": "bG92ZS53YW5ha2FAYmFjaGNhcmUubno=", "m": "MDIxIDA5MDYgNjEwMg==", "l": "", "proximityGroup": 27}, {"rsm": "Eve", "region": "Queenstown - Lakes", "area": "Wanaka", "startDate": "20/02/2025", "firstName": "Emily", "lastName": "Blakey", "e": "c25vdy53YW5ha2FAYmFjaGNhcmUubno=", "m": "MDIxIDIyMCAxMjAz", "l": "", "proximityGroup": 27}, {"rsm": "Eve", "region": "Queenstown - Lakes", "area": "Arrowtown and Queenstown", "startDate": "05/11/2021", "firstName": "Cecilia", "lastName": "Nunez", "e": "cmVsYXgucXVlZW5zdG93bkBiYWNoY2FyZS5ueg==", "m": "MDIxIDA4MiA3NjM1Mg==", "l": "", "proximityGroup": 28}, {"rsm": "Eve", "region": "Queenstown - Lakes", "area": "Queenstown", "startDate": "08/08/2022", "firstName": "Moises", "lastName": "Santacatarina", "e": "ZGlzY292ZXIucXVlZW5zdG93bkBiYWNoY2FyZS5ueg==", "m": "MDIxIDA4NCAxMjQ5NQ==", "l": "", "proximityGroup": 28}, {"rsm": "Eve", "region": "Queenstown - Lakes", "area": "Cromwell", "startDate": "07/07/2022", "firstName": "Marcia", "lastName": "Gill", "e": "c3RheS5jcm9td2VsbEBiYWNoY2FyZS5ueg==", "m": "MDI3IDM3NTE1Mjk=", "l": "", "proximityGroup": 29}, {"rsm": "Eve", "region": "Queenstown - Lakes", "area": "Alexandra/Clyde", "startDate": "02/05/2025", "firstName": "Brooke", "lastName": "Hall", "e": "dmlzaXQuY2x5ZGVAYmFjaGNhcmUubno=", "m": "MDI3IDQyOCAzMzQ2", "l": "", "proximityGroup": 29}, {"rsm": "Eve", "region": "Fiordland", "area": "Te Anau", "startDate": "15/09/2025", "firstName": "Catherine", "lastName": "Scott", "e": "cmVzdC50ZWFuYXVAYmFjaGNhcmUubno=", "m": "MDIxIDI1NSA3MjEw", "l": "", "proximityGroup": 30}, {"rsm": "Eve", "region": "Fiordland", "area": "Te Anau", "startDate": "05/01/2023", "firstName": "Lynne", "lastName": "Aitchison", "e": "dmlzaXQudGVhbmF1QGJhY2hjYXJlLm56", "m": "MDIxIDA4MiA1MjYyNw==", "l": "U2VlIG5vdGVzIC0+", "proximityGroup": 30}];
-  var PALETTE = ['#fde8e8','#fde8d5','#fef3cc','#e8f4ea','#dceeff','#f0e8ff','#fce4d6','#e8f0fe','#fef9e7','#f0fde4','#fdf4ff','#fff0f0','#e8fdf5','#fdf8e8','#f8f0ff','#e8f8fd','#fde8f4','#f0f8e8','#fde8ec','#edf8ff','#fdf0e8','#e8f4f8','#fef0ff','#f0ffe8','#ffe8f0','#e8f0f8','#fff8e8','#f8e8ff','#e8fff0','#ffe8e8','#e8e8ff'];
-  function bgForGroup(g){ return PALETTE[g % PALETTE.length]; }
-  function dec(s){ try{ return s ? decodeURIComponent(escape(atob(s))) : ''; }catch(e){ return ''; } }
-
-  var sel = document.getElementById('msp_region');
-  if(sel){
-    var regions = [];
-    MSP_DATA.forEach(function(m){ if(regions.indexOf(m.region)===-1) regions.push(m.region); });
-    regions.sort().forEach(function(r){ var o=document.createElement('option'); o.value=r; o.textContent=r; sel.appendChild(o); });
-  }
-  mspRender(MSP_DATA);
-
-  window.mspFilter = function(){
-    var q=(document.getElementById('msp_search').value||'').toLowerCase().trim();
-    var rsm=(document.getElementById('msp_rsm').value||'').toLowerCase();
-    var region=(document.getElementById('msp_region').value||'').toLowerCase();
-    var filtered=MSP_DATA.filter(function(m){
-      var matchQ=!q||[m.firstName,m.lastName,m.area,dec(m.e),dec(m.m),dec(m.l),m.region].some(function(v){return (v||'').toLowerCase().indexOf(q)!==-1;});
-      var matchRsm=!rsm||m.rsm.toLowerCase()===rsm;
-      var matchReg=!region||m.region.toLowerCase()===region;
-      return matchQ&&matchRsm&&matchReg;
-    });
-    mspRender(filtered);
-    mspCloseNearby();
-  };
-
-  window.mspClearFilters=function(){ document.getElementById('msp_search').value=''; document.getElementById('msp_rsm').value=''; document.getElementById('msp_region').value=''; window.mspFilter(); };
-
-  var mspContactUnlocked=false;
-
-  function mspRender(list){
-    var grid=document.getElementById('msp_grid');
-    var empty=document.getElementById('msp_empty');
-    var count=document.getElementById('msp_count');
-    if(!grid) return;
-    count.textContent=list.length+' MSP'+(list.length!==1?'s':'')+' found';
-    if(list.length===0){ grid.innerHTML=''; if(empty) empty.style.display='block'; return; }
-    if(empty) empty.style.display='none';
-    var html='';
-    for(var i=0;i<list.length;i++) html+=mspCard(list[i]);
-    grid.innerHTML=html;
-  }
-
-  function mspCard(m){
-    var bg=bgForGroup(m.proximityGroup);
-    var name=m.firstName+' '+m.lastName;
-    var safeName=name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    var contact='';
-    if(mspContactUnlocked){
-      var _mob=dec(m.m), _land=dec(m.l), _em=dec(m.e);
-      var _telM=_mob.replace(/[^0-9+]/g,''), _telL=_land.replace(/[^0-9+]/g,'');
-      if(_mob) contact+='<div style="display:flex;align-items:center;gap:6px;"><span>📱</span><a href="tel:'+_telM+'" onclick="event.stopPropagation()" style="color:var(--text-primary);text-decoration:none;font-weight:600;">'+_mob+'</a></div>';
-      if(_land) contact+='<div style="display:flex;align-items:center;gap:6px;"><span>☎️</span><a href="tel:'+_telL+'" onclick="event.stopPropagation()" style="color:var(--text-primary);text-decoration:none;">'+_land+'</a></div>';
-      if(_em) contact+='<div style="display:flex;align-items:center;gap:6px;overflow:hidden;"><span>✉️</span><a href="mailto:'+_em+'" onclick="event.stopPropagation()" style="color:var(--brand);text-decoration:none;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_em+'</a></div>';
-    } else {
-      contact='<div style="font-size:11px;color:var(--text-muted);font-style:italic;">🔒 Contact details hidden</div>';
-    }
-    return '<div style="background:'+bg+';border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 16px;cursor:pointer;transition:box-shadow 0.15s,transform 0.15s;" onclick="mspShowNearby('+m.proximityGroup+',\''+safeName+'\')" onmouseover="this.style.boxShadow=\'0 4px 16px rgba(91,33,182,0.12)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.boxShadow=\'\';this.style.transform=\'\'">'+
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;">'+
-        '<div><div style="font-size:14px;font-weight:800;color:var(--text-primary);">'+m.firstName+' '+m.lastName+'</div>'+
-        '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--brand);margin-top:2px;">'+m.area+'</div></div>'+
-        '<div style="font-size:10px;background:rgba(91,33,182,0.1);color:#5b21b6;padding:3px 8px;border-radius:10px;font-weight:700;white-space:nowrap;">'+m.rsm+'</div>'+
-      '</div>'+
-      '<div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-secondary);">'+contact+
-        '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;padding-top:4px;border-top:1px solid rgba(0,0,0,0.06);">'+
-          '<span style="font-size:11px;color:var(--text-muted);">📅 Since '+m.startDate+'</span>'+
-          '<span style="margin-left:auto;font-size:11px;color:var(--text-muted);">'+m.region+'</span>'+
-        '</div>'+
-      '</div>'+
-      '<div style="margin-top:8px;font-size:11px;color:#7c3aed;font-weight:600;">👆 Click to see MSPs within ~30 min</div>'+
-    '</div>';
-  }
-
-  window.mspShowNearby=function(group,clickedName){
-    var nearby=MSP_DATA.filter(function(m){return m.proximityGroup===group;});
-    var panel=document.getElementById('msp_nearby_panel');
-    var title=document.getElementById('msp_nearby_title');
-    var grid=document.getElementById('msp_nearby_grid');
-    if(!panel) return;
-    title.textContent='MSPs within ~30 min of '+clickedName+' ('+nearby.length+' total)';
-    var html=''; for(var i=0;i<nearby.length;i++) html+=mspCard(nearby[i]);
-    grid.innerHTML=html;
-    panel.style.display='block';
-    panel.scrollIntoView({behavior:'smooth',block:'nearest'});
-  };
-
-  window.mspCloseNearby=function(){ var p=document.getElementById('msp_nearby_panel'); if(p) p.style.display='none'; };
-
-  setTimeout(function(){
-    var el=document.getElementById('msp_count'); if(!el) return;
-    var clicks=0,timer;
-    el.addEventListener('click',function(){
-      clicks++; clearTimeout(timer);
-      timer=setTimeout(function(){clicks=0;},600);
-      if(clicks>=3){ clicks=0; mspContactUnlocked=!mspContactUnlocked; window.mspFilter();
-        var b=document.getElementById('msp_unlock_banner'); if(b) b.style.display=mspContactUnlocked?'flex':'none'; }
-    });
-  },100);
-
-})();
-</script>
 
 
 </body>
