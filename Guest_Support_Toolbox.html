@@ -3460,7 +3460,7 @@ function qcPlatformRadioChanged() {
       <div style="display:flex;align-items:flex-start;gap:12px;">
         <div style="width:36px;height:36px;border-radius:50%;background:#fffbeb;border:1px solid #fcd34d;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;">⚠️</div>
         <div><div class="qc-modal-title">Approval required</div>
-        <div class="qc-modal-body">For <strong>Bachcare Direct</strong>, date changes and reductions of nights can only be processed <strong>outside of 30 days</strong> of the booking start per policy. This request appears to be <strong>inside 30 days</strong>. Please seek <strong>Team Leader approval</strong> before proceeding.<br><br><em>If you are only adding an extension, you may disregard this message.</em></div></div>
+        <div class="qc-modal-body">For <strong>Bachcare Direct</strong>, date changes and reductions of nights can only be processed <strong>outside of 30 days</strong> of the booking start per policy. This request appears to be <strong>inside 30 days</strong>. Please seek <strong>Supervisor approval</strong> before proceeding.<br><br><em>If you are only adding an extension, you may disregard this message.</em></div></div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:16px;"><button class="btn-secondary" id="d30Close" style="width:auto;padding:8px 20px;margin:0;">OK</button></div>
     </div>
@@ -3493,7 +3493,7 @@ function qcPlatformRadioChanged() {
       <div style="display:flex;align-items:flex-start;gap:12px;">
         <div style="width:36px;height:36px;border-radius:50%;background:#fffbeb;border:1px solid #fcd34d;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;">⚠️</div>
         <div><div class="qc-modal-title">Outside free-cancellation window</div>
-        <div class="qc-modal-body">This <strong><span id="oap-chan">Booking.com</span></strong> request (<strong><span id="oap-type">Change of Date</span></strong>) appears to be <strong>inside</strong> the free-cancellation window.<br><br>• <strong>Booking.com:</strong> 7 days before start<br>• <strong>Airbnb:</strong> 30 days before start<br><br>Please <strong>seek Team Leader approval</strong> before proceeding.</div></div>
+        <div class="qc-modal-body">This <strong><span id="oap-chan">Booking.com</span></strong> request (<strong><span id="oap-type">Change of Date</span></strong>) appears to be <strong>inside</strong> the free-cancellation window.<br><br>• <strong>Booking.com:</strong> 7 days before start<br>• <strong>Airbnb:</strong> 30 days before start<br><br>Please <strong>seek Supervisor approval</strong> before proceeding.</div></div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:16px;"><button class="btn-secondary" id="oapClose" style="width:auto;padding:8px 20px;margin:0;">OK</button></div>
     </div>
@@ -4215,7 +4215,7 @@ body.tut-active hr, body.tut-active .divider { visibility: hidden; }
     { sel: '#qc_notePreview',             title: 'Itinerary Note Preview',         body: 'A live preview of how the note will look in Enterprise. Check this before copying to make sure everything looks right.', useField: false, forcePos: 'left' },
     { sel: '#qc_holdLineRow',             title: '24-Hour Hold Advisory',          body: 'Tick this to add a line advising the quote is valid for 24 hours. Recommended for all direct quotes.', useField: false, forcePos: 'left' },
     { sel: '#qc_emailText',               title: 'Guest Quote Email',              body: 'A pre-drafted email with dates, total cost, and a call to action. Click Copy and paste it straight into your email client.', useCard: true, forcePos: 'left' },
-    { sel: '#tool-quote .platform-grid',  title: "You're all set! 🎉",             body: "That's everything in the Booking Quote Tool. If anything is unclear or you run into an edge case, don't hesitate to check with your team leader — they're always happy to help.", useField: false, isEnd: true },
+    { sel: '#tool-quote .platform-grid',  title: "You're all set! 🎉",             body: "That's everything in the Booking Quote Tool. If anything is unclear or you run into an edge case, don't hesitate to check with your supervisor — they're always happy to help.", useField: false, isEnd: true },
   ];
 
   // ── Date Change Calculator steps — platform, then left card (original) top→bottom, then right card (new) top→bottom, then outputs ──
@@ -4237,11 +4237,11 @@ body.tut-active hr, body.tut-active .divider { visibility: hidden; }
     { sel: '#adj_tile3',                  title: 'Outcome — Charge or Refund', forcePos: 'above',    body: 'The key result. Shows whether to charge the guest more or refund them, and the exact amount. Updates live as you enter figures.', useCard: true },
     { sel: '#tile1Box',                   title: 'Original Total Tile',  forcePos: 'right',           body: 'Shows the total cost of the original booking for comparison.', useField: false },
     { sel: '#tile2Box',                   title: 'New Total Tile',       forcePos: 'right',                body: 'Shows the total cost of the new booking once all rates and charges are entered.', useField: false },
-    { sel: '#adj_tile3',                  title: 'Amount to Charge or Refund', forcePos: 'above',  body: 'This is the bottom line — the exact dollar amount to charge the guest or refund them. Always confirm this figure with your team leader before processing any payment or refund.', useCard: true },
+    { sel: '#adj_tile3',                  title: 'Amount to Charge or Refund', forcePos: 'above',  body: 'This is the bottom line — the exact dollar amount to charge the guest or refund them. Always confirm this figure with your supervisor before processing any payment or refund.', useCard: true },
     { sel: '#htmlCOD',                    title: 'Finance Breakdown Note', forcePos: 'below',        body: 'Complete HTML breakdown ready to paste into Enterprise itinerary notes — both bookings, all charges, and the outcome. Click Copy.', useCard: true },
     { sel: '#previewCODBox',              title: 'Itinerary Note Preview', forcePos: 'below',        body: 'Live preview of the note as it will appear in Enterprise. Review this before copying.', useField: false },
     { sel: '#guestEmail',                 title: 'Guest Email',          forcePos: 'below',                   body: 'Pre-drafted email summarising the date change, original and new totals, and the charge or refund. Bachcare Direct only. Click Copy.', useCard: true },
-    { sel: '#adj_platform_grid',          title: "You're all set! 🎉",            body: "That's everything in the Date Change Calculator. Extensions, reductions, and changes of dates all work slightly differently — take your time with each one. If you're ever unsure, check with your team leader before processing.", useField: false, isEnd: true },
+    { sel: '#adj_platform_grid',          title: "You're all set! 🎉",            body: "That's everything in the Date Change Calculator. Extensions, reductions, and changes of dates all work slightly differently — take your time with each one. If you're ever unsure, check with your supervisor before processing.", useField: false, isEnd: true },
   ];
 
   let steps = [], currentStep = 0;
@@ -4566,7 +4566,7 @@ body.tut-active hr, body.tut-active .divider { visibility: hidden; }
     { sel: '#canc_copyCard', title: 'Agent Copy Text', useField: false, forcePos: 'above',
       body: "The Agent Copy Text box generates a plain-English summary of the outcome ready to paste directly into Enterprise itinerary notes or your call log. Click Copy to Clipboard and paste it straight in — no need to type notes from scratch." },
     { sel: '#canc_platformGrid', title: "You're all set! 🎉", useField: false, isEnd: true,
-      body: "That's everything in the Cancellation Advisor. Select a platform, check the date, and let the tool do the work. If you're ever unsure about an outcome — especially for edge cases or exceptional circumstances — always check with your team leader before advising the guest." },
+      body: "That's everything in the Cancellation Advisor. Select a platform, check the date, and let the tool do the work. If you're ever unsure about an outcome — especially for edge cases or exceptional circumstances — always check with your supervisor before advising the guest." },
   ];
   window.CANC_STEPS = CANC_STEPS;
 
@@ -5064,15 +5064,15 @@ function wfmGenerate(){
   if(propertyUnsafe){
     badgeStyle = 'background:var(--danger-bg);border:1.5px solid var(--danger-border);color:#991b1b;';
     badgeText = 'Property Issue Confirmed — Guest Is Within FM';
-    summaryHtml = '<p>The MSP has confirmed the property has an issue or is unsafe. The guest is within Force Majeure. Copy this note into the booking, then seek TL approval before advising the guest of any financial outcome. Lead with a rehouse or change of dates first.</p>';
+    summaryHtml = '<p>The MSP has confirmed the property has an issue or is unsafe. The guest is within Force Majeure. Copy this note into the booking, then seek Supervisor approval before advising the guest of any financial outcome. Lead with a rehouse or change of dates first.</p>';
     options = [
       {i:'🏡',t:'Rehouse / Alternative Property First',d:'Offer an alternative Bachcare property or a change of dates before discussing any refund.'},
       {i:'📅',t:'Change of Dates',d:'If no alternative is available, offer to move to new dates.'},
-      {i:'💰',t:'Refund — TL Approval Required',d:'If rehouse and date change are not possible, a refund may apply. Get TL approval first.'},
+      {i:'💰',t:'Refund — Supervisor Approval Required',d:'If rehouse and date change are not possible, a refund may apply. Get Supervisor approval first.'},
       {i:'📞',t:'RSM — Only If MSP Unavailable',d:'Contact RSM only if you cannot get information from the MSP directly.'}
     ];
-    outcomeLine = 'FM CONFIRMED — Property issue confirmed by MSP. TL approval required before advising any financial outcome. Rehouse or date change to be offered first.';
-    nextStep = 'Copy this note into the booking now. Speak to your TL. Lead with rehousing or changing dates — only move to a refund conversation if those options do not work. Do not advise any financial outcome without TL sign-off.';
+    outcomeLine = 'FM CONFIRMED — Property issue confirmed by MSP. Supervisor approval required before advising any financial outcome. Rehouse or date change to be offered first.';
+    nextStep = 'Copy this note into the booking now. Speak to your Supervisor. Lead with rehousing or changing dates — only move to a refund conversation if those options do not work. Do not advise any financial outcome without Supervisor sign-off.';
   } else if(evidenceContradicts){
     badgeStyle = 'background:var(--danger-bg);border:1.5px solid var(--danger-border);color:#991b1b;';
     badgeText = 'FM Not Approved — Standard Terms Apply';
@@ -5086,16 +5086,16 @@ function wfmGenerate(){
   } else if(accessClosed && propertySafe){
     badgeStyle = 'background:var(--warn-bg);border:1.5px solid var(--warn-border);color:#92400e;';
     badgeText = 'FM Confirmed — Guest Is Within Force Majeure';
-    summaryHtml = '<p>Road access is confirmed closed and the property is safe. This guest is within Force Majeure under Bachcare clause 12.3. Copy this note to the booking and seek TL approval before advising any financial outcome.</p>';
+    summaryHtml = '<p>Road access is confirmed closed and the property is safe. This guest is within Force Majeure under Bachcare clause 12.3. Copy this note to the booking and seek Supervisor approval before advising any financial outcome.</p>';
     options = [
       {i:'🏡',t:'Rehouse / Alternative Property First',d:'Offer an alternative Bachcare property for the same or similar dates.'},
       {i:'📅',t:'Change of Dates',d:'If no alternative is available, offer to move the booking to new dates.'},
-      {i:'💰',t:'Refund — TL Approval Required',d:'If rehouse and date change are not possible, a refund may apply under clause 12.3.'},
-      {i:'👤',t:'TL Sign-Off Before Any Financial Offer',d:'Do not quote or process any refund until your TL has confirmed the outcome.'}
+      {i:'💰',t:'Refund — Supervisor Approval Required',d:'If rehouse and date change are not possible, a refund may apply under clause 12.3.'},
+      {i:'👤',t:'Supervisor Sign-Off Before Any Financial Offer',d:'Do not quote or process any refund until your Supervisor has confirmed the outcome.'}
     ];
     script = '"Thank you for your patience. I can confirm that based on the road closure affecting access to the property, your booking is within our Force Majeure process. I\'d like to look at a couple of options for you — we can try to find an alternative property for your dates, or look at moving your stay to different dates. Let me look into what\'s available and come back to you."';
-    outcomeLine = 'FM CONFIRMED — Clause 12.3 applies. Road access closed via NZTA. Property safe via MSP. Rehouse or date change to be offered first. Any financial outcome requires TL approval.';
-    nextStep = 'Copy this note to the booking now. Speak to your TL. Lead with rehousing or a date change — only move to a refund discussion if those options are exhausted. Do not offer any financial outcome without TL sign-off.';
+    outcomeLine = 'FM CONFIRMED — Clause 12.3 applies. Road access closed via NZTA. Property safe via MSP. Rehouse or date change to be offered first. Any financial outcome requires Supervisor approval.';
+    nextStep = 'Copy this note to the booking now. Speak to your Supervisor. Lead with rehousing or a date change — only move to a refund discussion if those options are exhausted. Do not offer any financial outcome without Supervisor sign-off.';
   } else if(accessAlternate){
     badgeStyle = 'background:var(--danger-bg);border:1.5px solid var(--danger-border);color:#991b1b;';
     badgeText = 'Alternate Route Available — Guest Must Travel';
@@ -5114,19 +5114,19 @@ function wfmGenerate(){
     summaryHtml = '<p>The property and road access are unaffected. A flight cancellation is a personal travel disruption — FM does not apply. Direct the guest to their airline and travel insurer.</p>';
     options = [
       {i:'✈️',t:'Direct to Airline / Insurer',d:'The guest should contact their airline and/or lodge a travel insurance claim.'},
-      {i:'📅',t:'Goodwill Date Change — Check With TL First',d:'May be offered as goodwill only. Check with your TL before offering.'},
+      {i:'📅',t:'Goodwill Date Change — Check With Supervisor First',d:'May be offered as goodwill only. Check with your Supervisor before offering.'},
       {i:'📋',t:'Standard Cancellation If Guest Declines',d:'If the guest wishes to cancel, standard cancellation terms apply.'}
     ];
     script = '"I\'m sorry your flight has been disrupted. I want to be upfront: our Force Majeure process is based on whether the property or access to it is affected, and in this case the property is open and accessible. For the flight disruption itself, your best options are to contact the airline directly or make a claim through your travel insurance. I can also check whether a date change might be possible if that would help?"';
     outcomeLine = 'FM NOT APPROVED — Flight cancellation is a personal travel disruption. Property and road access unaffected. Guest directed to airline and travel insurer.';
-    nextStep = 'Copy this note to the booking. Tell the guest FM does not apply and direct them to their airline and travel insurer. If a goodwill date change is being considered, check with your TL before making any offer.';
+    nextStep = 'Copy this note to the booking. Tell the guest FM does not apply and direct them to their airline and travel insurer. If a goodwill date change is being considered, check with your Supervisor before making any offer.';
   } else if(weatherOnly && accessOpen){
     badgeStyle = 'background:var(--danger-bg);border:1.5px solid var(--danger-border);color:#991b1b;';
     badgeText = 'Weather Concern Only — FM Does Not Apply';
     summaryHtml = '<p>NZTA confirms access is open. Weather concern or personal reluctance to travel does not trigger FM under Bachcare terms. Standard cancellation terms apply if the guest chooses not to travel.</p>';
     options = [
       {i:'📋',t:'Standard Cancellation Terms Apply',d:'If the guest chooses not to travel, the normal cancellation policy applies.'},
-      {i:'📅',t:'Goodwill Date Change — Check With TL First',d:'May be offered as goodwill only. Check with your TL before offering.'}
+      {i:'📅',t:'Goodwill Date Change — Check With Supervisor First',d:'May be offered as goodwill only. Check with your Supervisor before offering.'}
     ];
     script = '"I understand the weather is making this feel uncertain. I\'ve checked the NZTA road information and the property is currently accessible. We\'re not able to confirm Force Majeure based on weather concern alone — the property itself needs to be directly affected. I\'m happy to talk you through your options from here."';
     outcomeLine = 'FM NOT TRIGGERED — Weather concern only. NZTA confirmed access open. Property accessible. Standard cancellation terms apply if guest chooses not to travel.';
@@ -5246,7 +5246,7 @@ function wfmReset(){
   <div style="background:linear-gradient(135deg,#5b21b6,#4c1d95);border-radius:0;padding:20px 28px;margin-bottom:0;color:#fff;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
       <div>
         <div style="font-size:17px;font-weight:800;margin-bottom:6px;letter-spacing:-0.02em;">🚪 Eviction & Warning Guide</div>
-        <div style="font-size:13px;opacity:0.85;line-height:1.6;">Work through each step in order. Always consult your Team Lead before proceeding with an eviction. Document everything as you go.</div>
+        <div style="font-size:13px;opacity:0.85;line-height:1.6;">Work through each step in order. Always consult your Supervisor before proceeding with an eviction. Document everything as you go.</div>
       </div>
       <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
         <button onclick="evShowResetConfirm()" id="ev_reset_btn" style="padding:7px 16px;background:rgba(255,255,255,0.12);color:#fff;border:1.5px solid rgba(255,255,255,0.3);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">🔄 Reset</button>
@@ -5273,7 +5273,7 @@ function wfmReset(){
         <span id="ev_chev1" style="margin-left:auto;color:var(--text-muted);font-size:18px;transition:transform 0.2s;display:inline-block;">▾</span>
       </div>
       <div class="card-body" id="ev_body1" data-open="true">
-        <div class="notice" style="background:var(--danger-bg);border-color:var(--danger-border);color:#7f1d1d;margin-bottom:14px;"><strong>Before anything else — you must call your Team Lead before processing any eviction.</strong></div>
+        <div class="notice" style="background:var(--danger-bg);border-color:var(--danger-border);color:#7f1d1d;margin-bottom:14px;"><strong>Before anything else — you must call your Supervisor before processing any eviction.</strong></div>
 
         <div class="field" style="margin-bottom:16px;">
           <label class="field-label">Is this a Key Account property?</label>
@@ -5292,7 +5292,7 @@ function wfmReset(){
           <select id="ev_situation" class="qc-select" onchange="evHandleSituation()">
             <option value="">— Select the situation —</option>
             <option value="immediate">Immediate risk — safety, illegal activity, or gross breach of T&Cs</option>
-            <option value="consult">Possible eviction but insufficient evidence — needs TL consultation</option>
+            <option value="consult">Possible eviction but insufficient evidence — needs Supervisor consultation</option>
             <option value="warning">Breach confirmed but no immediate risk — warning appropriate</option>
             <option value="not-grounds">Not sure if this is grounds for eviction</option>
           </select>
@@ -5348,7 +5348,7 @@ function wfmReset(){
         <span id="ev_chev3" style="margin-left:auto;color:var(--text-muted);font-size:18px;transition:transform 0.2s;display:inline-block;">▾</span>
       </div>
       <div class="card-body" id="ev_body3" data-open="true">
-        <div class="notice" style="background:var(--warn-bg);border-color:var(--warn-border);color:#78350f;margin-bottom:12px;"><strong>If the eviction is before 10 PM</strong> — for any marginal cases, attempt to contact the property owner after speaking with your TL. Update the owner via text every 20–30 minutes if they are aware of the situation.</div>
+        <div class="notice" style="background:var(--warn-bg);border-color:var(--warn-border);color:#78350f;margin-bottom:12px;"><strong>If the eviction is before 10 PM</strong> — for any marginal cases, attempt to contact the property owner after speaking with your Supervisor. Update the owner via text every 20–30 minutes if they are aware of the situation.</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="ev_mspContacted" style="width:15px;height:15px;" onchange="evRefresh()"> <span><strong>MSP contacted</strong> to verify the breach and arrange a property visit</span></label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="ev_ownerContacted" style="width:15px;height:15px;" onchange="evRefresh()"> <span><strong>Owner notified</strong> (text update sent — continue every 20–30 mins if situation is ongoing)</span></label>
@@ -5466,7 +5466,7 @@ function wfmReset(){
       </div>
       <div class="card-body" id="ev_bodyinfo" data-open="true">
         <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
-          If you're unsure whether the situation warrants an eviction, consult your Team Lead. The following are <strong>not</strong> grounds for eviction on their own:
+          If you're unsure whether the situation warrants an eviction, consult your Supervisor. The following are <strong>not</strong> grounds for eviction on their own:
           <ul style="margin:10px 0 0 18px;display:flex;flex-direction:column;gap:6px;">
             <li>Accidental damage that does not affect safety or cause further harm</li>
             <li>Noise that does not violate the property's stated noise restrictions</li>
@@ -5541,10 +5541,10 @@ function evBuildDatetime(){
 function evHandleSituation(){
   var v = evEl('ev_situation').value;
   var msgs = {
-    'immediate': evNotice('red','<strong>🚨 Immediate Eviction</strong> — Call your Team Lead now before taking any action. Work through all steps below in order. Document everything as you go.'),
-    'consult':   evNotice('amber','<strong>⚠️ TL Consultation Required</strong> — The MSP cannot verify sufficient grounds. Escalate to your Team Lead to determine whether to proceed, issue a warning, or take a different course of action.'),
+    'immediate': evNotice('red','<strong>🚨 Immediate Eviction</strong> — Call your Supervisor now before taking any action. Work through all steps below in order. Document everything as you go.'),
+    'consult':   evNotice('amber','<strong>⚠️ Supervisor Consultation Required</strong> — The MSP cannot verify sufficient grounds. Escalate to your Supervisor to determine whether to proceed, issue a warning, or take a different course of action.'),
     'warning':   evNotice('amber','<strong>📢 Warning to be Issued</strong> — Contact the guest to advise them of the breach and that it must be remedied immediately. Ask the MSP to verify compliance if appropriate. Send a follow-up email stating that further breaches will result in eviction.'),
-    'not-grounds': evNotice('blue','<strong>ℹ️ Check the non-eviction grounds below</strong> — If still unsure after reviewing, consult your Team Lead. When in doubt, always check before acting.')
+    'not-grounds': evNotice('blue','<strong>ℹ️ Check the non-eviction grounds below</strong> — If still unsure after reviewing, consult your Supervisor. When in doubt, always check before acting.')
   };
   evEl('ev_situation_out').innerHTML = msgs[v] || '';
   evRefresh();
@@ -5673,7 +5673,7 @@ function evUpdateNote(){
   var situation = evGv('ev_situation');
   var sitLabels = {
     'immediate':'Immediate eviction',
-    'consult':'TL consultation required',
+    'consult':'Supervisor consultation required',
     'warning':'Warning issued',
     'not-grounds':'Not grounds for eviction'
   };
