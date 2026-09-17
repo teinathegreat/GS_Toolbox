@@ -2443,6 +2443,27 @@ toggleFields();
     </div>
   </div><!-- end .page -->
 
+  <!-- Modal: stay is over the 168-night maximum -->
+  <div class="qc-modal-overlay hidden" id="qc_overLimitModal">
+    <div class="qc-modal">
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:#fffbeb;border:1px solid #fcd34d;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;">⚠️</div>
+        <div>
+          <div class="qc-modal-title">Over the 168-night maximum</div>
+          <div class="qc-modal-body">
+            <p>This stay is <strong id="qc_overLimitNights">0</strong> nights. The maximum quote length is 168 nights.</p>
+            <p style="margin-top:8px;">Do you want to continue with the quote anyway?</p>
+            <p style="margin-top:8px;font-size:12px;color:var(--text-muted);">If you continue, the quote calculates as normal. On Bachcare Direct the long-term discount is the same rate as a 167-night stay.</p>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+        <button class="btn-secondary" id="qc_overLimitCancel" style="width:auto;padding:8px 20px;margin:0;">Cancel</button>
+        <button class="btn-primary" id="qc_overLimitContinue" style="width:auto;padding:8px 20px;margin:0;">Continue with quote</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: No long-term discount for non-direct -->
   <div class="qc-modal-overlay hidden" id="qc_noLtModal">
     <div class="qc-modal">
@@ -2643,6 +2664,10 @@ function qcPlatformRadioChanged() {
   // Where the rent figure comes from: 'modifiers' (paste the Daily Modifiers table)
   // or 'nightly' (one flat nightly rate x nights). Modifiers is the default.
   let qcRentMode='modifiers';
+  // Stays over 168 nights ask before quoting. Keyed by the date range, so the
+  // question is asked once per range rather than on every recalculation, and
+  // changing the dates asks again.
+  let qcOverLimitAsked='', qcOverLimitOk='';
 
   function qcSwitchRentTab(mode){
     qcRentMode = (mode==='nightly'||mode==='allin') ? mode : 'modifiers';
@@ -2710,7 +2735,7 @@ function qcPlatformRadioChanged() {
   }
 
   function qcAutoPct(n){ if(n>=85)return 30; if(n>=57)return 25; if(n>=29)return 15; return 0; }
-  function qcTierText(n){ if(n>=85)return'85 to 168 nights'; if(n>=57)return'57 to 84 nights'; if(n>=29)return'29 to 56 nights'; return''; }
+  function qcTierText(n){ if(n>168)return'Over 168 nights, same rate as 85 to 168'; if(n>=85)return'85 to 168 nights'; if(n>=57)return'57 to 84 nights'; if(n>=29)return'29 to 56 nights'; return''; }
 
   function qcSumRent(s,e){
     if(!s||!e) return{sum:0,missing:0};
@@ -2829,8 +2854,24 @@ function qcPlatformRadioChanged() {
     var _badDates = !!(s && e && e.getTime() <= s.getTime());
     $q('qc_dateWarn').classList.toggle('hidden', !_badDates);
     if(!($q('qc_platform').value||'').trim()){ $q('qc_bookingCount').textContent='0'; $q('qc_status').textContent=''; $q('qc_statusHint').textContent=''; $q('qc_total').textContent=qcNzd(0); $q('qc_noteHtml').value=''; $q('qc_notePreview').innerHTML=''; $q('qc_emailText').value=''; return; }
-    const tooLong=nights>168; $q('qc_limitWarn').classList.toggle('hidden',!tooLong);
-    if(tooLong){ $q('qc_bookingCount').textContent='0'; $q('qc_total').textContent=qcNzd(0); return; }
+    // Over 168 nights: ask once for this date range. Until the agent chooses to
+    // continue, nothing is quoted. Once they do, the quote runs as normal; the
+    // discount tiers top out at 85+ nights, so the rate is the same as 167.
+    const tooLong=nights>168, rangeKey=(s&&e)?qcIso(s)+'|'+qcIso(e):'';
+    const overOk=tooLong && qcOverLimitOk===rangeKey;
+    $q('qc_limitWarn').classList.toggle('hidden',!tooLong);
+    $q('qc_limitWarn').textContent = overOk
+      ? `⚠ This quote is ${nights} nights, over the 168-night maximum. Continued as confirmed.`
+      : '⚠ Maximum quote length is 168 nights.';
+    if(!tooLong) $q('qc_overLimitModal').classList.add('hidden');
+    if(tooLong && !overOk){
+      if(qcOverLimitAsked!==rangeKey){
+        qcOverLimitAsked=rangeKey;
+        $q('qc_overLimitNights').textContent=String(nights);
+        $q('qc_overLimitModal').classList.remove('hidden');
+      }
+      $q('qc_bookingCount').textContent='0'; $q('qc_total').textContent=qcNzd(0); return;
+    }
     const longTerm=nights>28, bc=qcBookingCount(nights);
     $q('qc_bookingCount').textContent=String(bc);
     $q('qc_status').textContent=longTerm?'Long-term':'Short stay';
@@ -2938,6 +2979,7 @@ function qcPlatformRadioChanged() {
     $q('qc_platform').value=''; $q('qc_pid').value=''; $q('qc_modPaste').innerHTML='';
     qcRateMap={}; qcRateCount=0; $q('qc_parsed').textContent='0'; $q('qc_matchedInfo').textContent='';
     if($q('qc_nightlyRate')) $q('qc_nightlyRate').value='';
+    qcClearOverLimit();
     if($q('qc_allInRate')) $q('qc_allInRate').value='';
     qcSwitchRentTab('modifiers');
     $q('qc_linenEach').value='0'; $q('qc_cleanEach').value='0'; $q('qc_lockCounts').checked=true;
@@ -2976,6 +3018,7 @@ function qcPlatformRadioChanged() {
     $q('qc_parsed').textContent = '0';
     if($q('qc_matchedInfo')) $q('qc_matchedInfo').textContent = '';
     if($q('qc_nightlyRate')) $q('qc_nightlyRate').value = '';
+    qcClearOverLimit();
     if($q('qc_allInRate')) $q('qc_allInRate').value = '';
     qcSwitchRentTab('modifiers');
     // Reset charge rows
@@ -3006,6 +3049,8 @@ function qcPlatformRadioChanged() {
   window._qcSetRates = function(map, count) { qcRateMap = map; qcRateCount = count; };
   window.qcResetAll = qcResetAll;
   // Back to a single empty additional-charge row
+  function qcClearOverLimit(){ qcOverLimitAsked=''; qcOverLimitOk=''; $q('qc_overLimitModal').classList.add('hidden'); }
+  window.qcClearOverLimit = qcClearOverLimit;
   window.qcClearCharges = function(){ $q('qc_addChargeRows').innerHTML=''; $q('qc_addChargeRows').appendChild(qcRenderChargeRow()); };
   window.qcSwitchRentTab = qcSwitchRentTab;
 
@@ -3096,8 +3141,11 @@ function qcPlatformRadioChanged() {
     $q('qc_copyEmail').addEventListener('click',()=>qcRobustCopy('qc_emailText'));
     var _qcr=$q('qc_reset'); if(_qcr) _qcr.addEventListener('click',qcResetAll);
     $q('qc_ltClose').addEventListener('click',()=>$q('qc_noLtModal').classList.add('hidden'));
+    $q('qc_overLimitContinue').addEventListener('click',()=>{ qcOverLimitOk=qcOverLimitAsked; $q('qc_overLimitModal').classList.add('hidden'); qcRecompute(); });
+    $q('qc_overLimitCancel').addEventListener('click',()=>$q('qc_overLimitModal').classList.add('hidden'));
+    $q('qc_overLimitModal').addEventListener('click',e=>{ if(e.target===$q('qc_overLimitModal'))$q('qc_overLimitModal').classList.add('hidden'); });
     $q('qc_noLtModal').addEventListener('click',e=>{ if(e.target===$q('qc_noLtModal'))$q('qc_noLtModal').classList.add('hidden'); });
-    document.addEventListener('keydown',e=>{ if(e.key==='Escape')$q('qc_noLtModal').classList.add('hidden'); });
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ $q('qc_noLtModal').classList.add('hidden'); $q('qc_overLimitModal').classList.add('hidden'); } });
     $q('qc_modPaste').addEventListener('paste',e=>{
       const cb=e.clipboardData; if(!cb)return;
       const hd=cb.getData('text/html'),td=cb.getData('text/plain');
@@ -5868,6 +5916,7 @@ function quoteReset(){
   var sr=document.getElementById('qc_addChargesSummary'); if(sr) sr.innerHTML='';
   // Additional charges: back to one empty row so nothing carries into the next quote
   if(typeof window.qcClearCharges==='function') window.qcClearCharges();
+  if(typeof window.qcClearOverLimit==='function') window.qcClearOverLimit();
   // Trigger platform reset
   if(typeof qcPlatformRadioChanged==='function') qcPlatformRadioChanged();
 }
