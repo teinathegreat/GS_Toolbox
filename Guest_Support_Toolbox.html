@@ -7,10 +7,26 @@
 // ?embed=1&tool=<cancellation|quote|adjustment|weather|eviction>. Its own
 // sidebar replaces the top bar and tool tabs, so those are hidden; everything
 // inside the tool is untouched. Opened normally, nothing here applies.
+//
+// The host may also pass its frame colours, &frameFrom=#hex&frameTo=#hex. Each
+// tool's banner then takes them instead of the toolbox's own purple, so it
+// matches the sidebar beside it. The sidebar runs frameFrom to frameTo down
+// the window's height and this frame fills the window from the same top edge,
+// so a gradient sized to 100vh makes the banner the top slice of that same
+// gradient. Set here rather than after load so the old purple never flashes.
 (function(){
   try {
-    if (new URLSearchParams(location.search).get('embed') === '1')
-      document.documentElement.classList.add('embedded');
+    var p = new URLSearchParams(location.search);
+    if (p.get('embed') !== '1') return;
+    document.documentElement.classList.add('embedded');
+    // Only plain hex colours: they are written straight into a stylesheet.
+    var HEX = /^#[0-9a-f]{6}$/i, from = p.get('frameFrom') || '', to = p.get('frameTo') || '';
+    if (HEX.test(from) && HEX.test(to)) {
+      var st = document.createElement('style');
+      st.textContent = 'html.embedded .tool-panel > div:first-child { background: linear-gradient(180deg, '
+        + from + ' 0%, ' + to + ' 100%) top / 100% 100vh no-repeat !important; }';
+      document.head.appendChild(st);
+    }
   } catch (e) {}
 })();
 </script>
@@ -5970,6 +5986,7 @@ document.addEventListener('DOMContentLoaded', function(){
   var panel = document.getElementById('tool-' + tool);
   var banner = panel && panel.firstElementChild;
   var actions = banner && banner.lastElementChild;
+
   if (tut && actions && WITH_TUTORIAL.indexOf(tool) >= 0) {
     tut.style.marginLeft = '0';
     tut.style.display = 'flex';
