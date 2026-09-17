@@ -32,6 +32,12 @@
 </script>
 <style>
   html.embedded .header, html.embedded .tool-nav { display: none !important; }
+  /* The tool's banner stays pinned while the tool scrolls beneath it. Below the
+     pop-ups (60), the note builder (900) and the tutorial (9000+). */
+  html.embedded .tool-panel > div:first-child { position: sticky; top: 0; z-index: 50; }
+  /* Anything that scrolls an element into view stops below the pinned banner.
+     --embed-banner-h is kept equal to the banner's height by the script at the end. */
+  html.embedded { scroll-padding-top: var(--embed-banner-h, 0px); }
 </style>
 <title>Guest Support Toolbox | Bachcare</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M20 32C20 32 7 22.5 7 14.5C7 10.4 10.2 7 14.2 7C16.5 7 18.6 8.1 20 9.9C21.4 8.1 23.5 7 25.8 7C29.8 7 33 10.4 33 14.5C33 22.5 20 32 20 32Z' fill='%235b21b6'/%3E%3C/svg%3E">
@@ -4472,10 +4478,12 @@ body.tut-active hr, body.tut-active .divider { visibility: hidden; }
     const vh = window.innerHeight;
     const targetFits = (preRect.height + PAD * 2) <= vh;
     const cardRoom = 220; // extra space for tutorial card below element
+    // Height of the pinned banner in embedded mode, 0 otherwise.
+    const topInset = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--embed-banner-h')) || 0;
     if (targetFits) {
-      if (preRect.top - PAD < 80) {
+      if (preRect.top - PAD < 80 + topInset) {
         // Too close to top, scroll up so element has breathing room
-        window.scrollTo({ top: window.scrollY + preRect.top - PAD - 80, behavior: 'smooth' });
+        window.scrollTo({ top: window.scrollY + preRect.top - PAD - 80 - topInset, behavior: 'smooth' });
       } else if (preRect.bottom + PAD + cardRoom > vh) {
         // Not enough room for card below, scroll down enough
         window.scrollTo({ top: window.scrollY + (preRect.bottom + PAD + cardRoom - vh), behavior: 'smooth' });
@@ -5991,6 +5999,15 @@ document.addEventListener('DOMContentLoaded', function(){
     tut.style.marginLeft = '0';
     tut.style.display = 'flex';
     actions.insertBefore(tut, actions.firstChild);
+  }
+
+  // The banner is pinned (see <head>), so record how tall it is for anything
+  // that scrolls content into view, including the tutorial.
+  if (banner) {
+    var fitBanner = function(){ document.documentElement.style.setProperty('--embed-banner-h', banner.offsetHeight + 'px'); };
+    fitBanner();
+    if (window.ResizeObserver) new ResizeObserver(fitBanner).observe(banner);
+    else window.addEventListener('resize', fitBanner);
   }
   window.scrollTo(0, 0);
 });
