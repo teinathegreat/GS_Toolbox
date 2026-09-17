@@ -2,6 +2,21 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
+<script>
+// Embedded mode. OpsHub shows one tool at a time by loading this file as
+// ?embed=1&tool=<cancellation|quote|adjustment|weather|eviction>. Its own
+// sidebar replaces the top bar and tool tabs, so those are hidden; everything
+// inside the tool is untouched. Opened normally, nothing here applies.
+(function(){
+  try {
+    if (new URLSearchParams(location.search).get('embed') === '1')
+      document.documentElement.classList.add('embedded');
+  } catch (e) {}
+})();
+</script>
+<style>
+  html.embedded .header, html.embedded .tool-nav { display: none !important; }
+</style>
 <title>Guest Support Toolbox | Bachcare</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M20 32C20 32 7 22.5 7 14.5C7 10.4 10.2 7 14.2 7C16.5 7 18.6 8.1 20 9.9C21.4 8.1 23.5 7 25.8 7C29.8 7 33 10.4 33 14.5C33 22.5 20 32 20 32Z' fill='%235b21b6'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -950,7 +965,7 @@ input[type="date"].qc-select { position: relative; }
 <div style="background:linear-gradient(135deg,#5b21b6,#4c1d95);border-radius:0;padding:20px 28px;margin-bottom:20px;color:#fff;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
     <div>
       <div style="font-size:17px;font-weight:800;margin-bottom:6px;letter-spacing:-0.02em;">🔍 Cancellation Advisor</div>
-      <div style="font-size:13px;opacity:0.85;line-height:1.6;">Select the platform, cancellation type and check-in date, then click Check Policy to get the outcome, call script and next steps.</div>
+      <div style="font-size:13px;opacity:0.85;line-height:1.6;">Select the platform, who is cancelling and the check-in date, then click Check Policy to get the outcome, call script and next steps.</div>
     </div>
     <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
       <button onclick="cancResetShowConfirm()" style="padding:7px 16px;background:rgba(255,255,255,0.12);color:#fff;border:1.5px solid rgba(255,255,255,0.3);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">🔄 Reset</button>
@@ -5882,6 +5897,37 @@ function wfmResetShowConfirm(){ var c=document.getElementById('wfmReset_confirm'
 
 // Init
 evRefresh();
+</script>
+
+<script>
+// Embedded mode, continued (see the top of <head>). Opens the requested tool and,
+// because the How To Use This Tool button lives in the hidden tab bar, moves it
+// into that tool's banner above Reset. Only the three tools with a tutorial get it.
+// Runs on DOMContentLoaded, after the page's own load handler, which resets
+// every tool and opens Home.
+document.addEventListener('DOMContentLoaded', function(){
+  if (!document.documentElement.classList.contains('embedded')) return;
+  var TOOLS = ['cancellation', 'quote', 'adjustment', 'weather', 'eviction'];
+  var WITH_TUTORIAL = ['cancellation', 'quote', 'adjustment'];
+  var tool = new URLSearchParams(location.search).get('tool');
+  if (TOOLS.indexOf(tool) < 0) tool = 'cancellation';
+
+  var navBtn = Array.prototype.find.call(document.querySelectorAll('.tool-nav-btn'), function(b){
+    return (b.getAttribute('onclick') || '').indexOf("'" + tool + "'") >= 0;
+  });
+  switchTool(tool, navBtn);
+
+  var tut = document.getElementById('globalTutorialBtn');
+  var panel = document.getElementById('tool-' + tool);
+  var banner = panel && panel.firstElementChild;
+  var actions = banner && banner.lastElementChild;
+  if (tut && actions && WITH_TUTORIAL.indexOf(tool) >= 0) {
+    tut.style.marginLeft = '0';
+    tut.style.display = 'flex';
+    actions.insertBefore(tut, actions.firstChild);
+  }
+  window.scrollTo(0, 0);
+});
 </script>
 
 
