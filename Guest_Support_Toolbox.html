@@ -1022,14 +1022,16 @@ input[type="date"].qc-select { position: relative; }
           </div>
         </div>
 
-        <div id="bachcareTypeWrap" class="field" data-tut="cancTypeWrap">
-          <label class="field-label" for="bachcareType">Cancellation Type</label>
-          <select id="bachcareType" onchange="toggleFields()">
-            <option value="customer">Customer cancellation</option>
-            <option value="owner_unexpected">Owner cancellation — unexpected event</option>
-          </select>
-          <div id="unexpectedInlineHelp" class="notice hidden">
-            Use only when the owner is cancelling because the property cannot be used — e.g. damage, urgent maintenance, safety concerns, or unavailability.
+        <div id="whoCancellingWrap" class="field" data-tut="cancTypeWrap">
+          <label class="field-label">Who is cancelling?</label>
+          <div class="toggle-group">
+            <input type="radio" name="whoCancelling" id="who_guest" value="guest" class="toggle-opt" checked="" onchange="toggleFields()">
+            <label for="who_guest" class="toggle-label">The guest</label>
+            <input type="radio" name="whoCancelling" id="who_owner" value="owner" class="toggle-opt" onchange="toggleFields()">
+            <label for="who_owner" class="toggle-label">The owner</label>
+          </div>
+          <div id="ownerCancelHelp" class="notice hidden" style="margin-top:8px;">
+            Owner cancellation follows the same policy on every platform, and the dates do not change the outcome. The platform above is used only to say which one to rehouse on first.
           </div>
         </div>
 
@@ -1046,7 +1048,7 @@ input[type="date"].qc-select { position: relative; }
 
         <hr class="divider">
 
-        <div class="field">
+        <div class="field" id="checkInWrap">
           <label class="field-label" for="checkIn">Booking Start Date (Check-in)</label>
           <input type="date" id="checkIn" class="qc-select">
           <div class="helper-text">Enter the guest's check-in date to calculate days until arrival.</div>
@@ -1130,14 +1132,15 @@ function daysBetween(a,b) { return Math.ceil((a-b)/86400000); }
 function getPlatform() { var el=document.querySelector('input[name="platform"]:checked'); return el ? el.value : ''; }
 function getWithin48() { var el=document.querySelector('input[name="within48"]:checked'); return el ? el.value : 'no'; }
 
+// Owner cancellation is decided without dates, so the timing questions drop away.
 function toggleFields() {
-  const isBachcare = getPlatform() === 'bachcare';
-  var wrap = document.getElementById('bachcareTypeWrap');
-  if(wrap) wrap.classList.toggle('hidden', !isBachcare);
-  var bt = document.getElementById('bachcareType');
-  const showUnexpected = isBachcare && bt && bt.value === 'owner_unexpected';
-  var help = document.getElementById('unexpectedInlineHelp');
-  if(help) help.classList.toggle('hidden', !showUnexpected);
+  var owner = document.querySelector('input[name="whoCancelling"]:checked');
+  owner = !!owner && owner.value === 'owner';
+  ['within48Wrap','checkInWrap'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.classList.toggle('hidden', owner);
+  });
+  var help = document.getElementById('ownerCancelHelp');
+  if(help) help.classList.toggle('hidden', !owner);
 }
 
 function switchTab(name, el) {
@@ -1221,25 +1224,81 @@ function setOutputs(data) {
   }
 }
 
-function calculate() {
-  const platform = getPlatform();
-  const bachcareType = document.getElementById('bachcareType').value;
-  const within48 = getWithin48();
-  const checkIn = parseLocalDate(document.getElementById('checkIn').value);
+// Cancellation policy. cancAssess() is kept word for word in step with the
+// OpsHub Cancellation Policy Checker (src/lib/tools/cancellation.js), which is
+// where the policy review changes were made: owner cancellation as one
+// rehouse-first outcome on every platform, owner discretion only for genuine
+// emergencies, and cleaning and linen refunds only where actually charged.
+const CANC_PLATFORMS = [
+  { value: 'bachcare', label: 'Bachcare' },
+  { value: 'airbnb',   label: 'Airbnb' },
+  { value: 'booking',  label: 'Booking.com' },
+  { value: 'vrbo',     label: 'Vrbo' },
+];
+
+function getWhoCancelling() { var el=document.querySelector('input[name="whoCancelling"]:checked'); return el ? el.value : 'guest'; }
+
+function cancAssess({ platform, whoCancelling, within48, checkIn }) {
   const today = startOfToday();
 
-  if (!checkIn || isNaN(checkIn.getTime())) {
-    alert('Please enter a valid booking start date.');
-    return;
+  // ── OWNER CANCELLATION ──
+  // The same policy on every platform, so it is decided before the guest
+  // timing branches and needs no date. When the owner pulls the booking it is
+  // on us to look after the guest: rehouse first, same area and amenities, on
+  // the platform they booked through where we can, because that is the terms
+  // they agreed to; then across all platforms for the closest fit if not. A
+  // full refund is theirs if they would rather. A goodwill payment for the
+  // inconvenience is never promised on the call, it goes to a supervisor.
+  if (whoCancelling === 'owner') {
+    const plat = (CANC_PLATFORMS.find((p) => p.value === platform) || {}).label || 'the platform it was booked on';
+    return {
+      daysText: '', confidence: 'Rehouse first', confidenceClass: 'safe',
+      result: 'Owner Cancellation, Rehouse First', tone: 'warn',
+      simple: 'The owner has cancelled, so looking after the guest is on us. Offer to rehouse first, a property in the same area, with the same amenities, and as close in price as possible, on ' + plat + ' where we can. If we cannot match it there, we look across all platforms for the closest fit. The guest covers any difference if the new property costs more, so keep it close in price to avoid leaving them out of pocket. If the guest would rather be refunded, they receive a full refund.',
+      script: buildScript(
+        'Hi [guest name], I am really sorry, I have some difficult news for you. The owner has had to cancel your booking. I want to reassure you straight away that we are going to look after you here. My first priority is to find you somewhere else to stay, ideally a property in the same area with the same sort of amenities, so your trip can still go ahead. If you would prefer, you are also fully entitled to a full refund instead. Which would you like me to look into first?',
+        [
+          {guest:'Why has the owner cancelled?', agent:'I am not always able to share the specific reason on the owner\'s behalf, but I can assure you it is nothing to do with your booking or anything you have done. What matters now is making sure you are looked after, and I am on it.'},
+          {guest:'Can you find me somewhere else to stay?', agent:'Yes, that is exactly what I would like to do. I will look first on ' + plat + ', the same as your original booking, for a property in the same area, with the same kind of amenities, and as close in price as I can, because that keeps everything on the terms you originally agreed to and keeps you from being out of pocket. If I cannot find the right fit there, I will widen the search across our other platforms to get you as close a match as I can. Can I take a moment to look and come back to you?'},
+          {guest:'Will the new place be exactly the same?', agent:'I will get as close as I can, same area, same amenities, a similar style of home. I cannot always promise it will be identical, but my aim is somewhere you will be just as comfortable. And if nothing suitable comes up, a full refund is always there as your option.'},
+          {guest:'Will the new place cost me more?', agent:'My aim is to find you something close in price so you are not left out of pocket, and I will do my best to keep it as near to your original cost as I can. If the only suitable option does cost a bit more, the difference would be yours to cover, but I will always talk that through with you first and never move you anywhere without your say so. And if you would rather not, a full refund is always there instead.'},
+          {guest:'I would rather just have my money back.', agent:'That is absolutely your choice, and because this is an owner cancellation you are entitled to a full refund of everything you have paid. I will get that started for you. If you change your mind and would like us to look at alternatives later, just say the word.'},
+          {guest:'This has really messed up my plans, can I get compensation for the inconvenience?', agent:'I completely understand, and I am genuinely sorry for the disruption this has caused you. I want to be honest that anything beyond rehousing you or the full refund, such as a payment for the inconvenience, is not something I can promise on the spot. What I can do is put it to my supervisor and raise your case properly. Let me do that and come back to you.'},
+          {guest:'Can I get written confirmation of the cancellation?', agent:'Absolutely. Once everything is sorted on our end, whether that is a rehouse or a refund, we will send you written confirmation. If you need it for travel insurance or your own records, just let us know and we will make sure it covers what you need.'},
+          {guest:'How long will a refund take if I choose that?', agent:'Once we have processed the cancellation, a refund generally reaches you within 5 to 10 business days depending on your bank and payment method. We will send confirmation once it is on its way.'}
+        ]
+      ),
+      breakdownItems: [
+        {text:'This is ours to put right. Reassure the guest and take ownership of finding them a solution', type:'action'},
+        {text:'Rehouse first: a property in the same area, with the same amenities, and as close in price as possible, on ' + plat + ' where we can, because that matches the terms they booked under', type:'action'},
+        {text:'If nothing suitable is on ' + plat + ', widen the search across all platforms for the closest match you can find', type:'action'},
+        {text:'The guest pays any difference if the replacement costs more, so keep it close in price to avoid leaving them out of pocket, and never move them without their agreement', type:'conditional'},
+        {text:'If the guest would rather not rehouse, they receive a full refund of everything they have paid', type:'refund'},
+        {text:'A fee for the inconvenience is not automatic. Put any request to your supervisor for approval before advising the guest', type:'conditional'}
+      ],
+      copy: 'Owner cancellation on ' + plat + '. Guest offered rehousing first: same area, same amenities, as close in price as possible, ' + plat + ' preferred, then across all platforms for the closest match. Guest covers any price difference if the replacement costs more. Full refund available if the guest prefers. Any goodwill fee for inconvenience requires supervisor approval.',
+      nextsteps: [
+        'Reassure the guest and take ownership. An owner cancellation is ours to make right.',
+        'Search ' + plat + ' first for a property in the same area, with the same amenities, and as close in price as possible.',
+        'If nothing suitable is on ' + plat + ', widen to all platforms for the closest match.',
+        'Keep the new property close in price. The guest covers any difference if it costs more, so aim to avoid leaving them out of pocket, and never move them without their agreement.',
+        'If the guest prefers, process a full refund of everything they have paid.',
+        'If the guest asks for a fee for the inconvenience, do not commit. Put it to your supervisor for approval.',
+        'Record the options offered and the guest\'s decision on the booking.'
+      ]
+    };
   }
+
+  if (!checkIn || isNaN(checkIn.getTime())) return null;
 
   const diff = daysBetween(checkIn, today);
   const daysText = diff === 1 ? '1 day until check-in' : diff + ' days until check-in';
 
+
   // Shared Q&A used across multiple scenarios
   const q_tragic = {
     guest: 'This is a genuine emergency / serious personal or health situation.',
-    agent: 'I\'m really sorry to hear that — thank you for letting me know. While I do need to work within the standard cancellation policy, what I can do is reach out to the property owner directly on your behalf to explain the circumstances and ask if they\'re willing to consider discretion outside of the policy. I want to be transparent that this is entirely at their discretion, and the outcome could be a partial refund, a credit, or a change of dates rather than a guaranteed full refund — but I\'m absolutely happy to make that call and advocate for you. Would you like me to do that?'
+    agent: 'I\'m really sorry to hear that, thank you for letting me know. While I do need to work within the standard cancellation policy, what I can do is reach out to the property owner directly on your behalf to explain the circumstances and ask if they\'re willing to consider discretion outside of the policy. I want to be transparent that this is entirely at their discretion, and the outcome could be a partial refund, a credit, or a change of dates rather than a guaranteed full refund, but I\'m absolutely happy to make that call and advocate for you. Would you like me to do that?'
   };
   const q_howLong = {
     guest: 'How long will the refund take to come through?',
@@ -1247,15 +1306,19 @@ function calculate() {
   };
   const q_partialStay = {
     guest: 'Can I just shorten the stay instead of cancelling fully?',
-    agent: 'That\'s a good option to explore. A date change or shortened stay may be possible depending on availability, and in some cases it could result in a better outcome for you than a full cancellation. Let me check what\'s available — can I place you on a brief hold?'
+    agent: 'That\'s a good option to explore. A date change or shortened stay may be possible depending on availability, and in some cases it could result in a better outcome for you than a full cancellation. Let me check what\'s available, can I place you on a brief hold?'
   };
   const q_travelInsurance = {
     guest: 'Will my travel insurance cover this?',
-    agent: 'That\'s really worth checking with your insurance provider directly, as coverage varies a lot between policies. If you do have a claim, they\'ll likely ask for a cancellation confirmation from us — which we can absolutely provide once the cancellation is processed.'
+    agent: 'That\'s really worth checking with your insurance provider directly, as coverage varies a lot between policies. If you do have a claim, they\'ll likely ask for a cancellation confirmation from us, which we can absolutely provide once the cancellation is processed.'
   };
   const q_ownerApproval = {
     guest: 'Can the owner just agree to refund me anyway?',
-    agent: 'Yes, it is possible for the owner to offer discretion outside of the standard policy, particularly in exceptional circumstances. I can contact them on your behalf and explain the situation — but I do want to be upfront that this is entirely their decision and I can\'t guarantee any particular outcome. Would you like me to try?'
+    // Gated on Teina's rule: the owner is only approached for a genuine
+    // emergency or serious personal or health situation. A change of plans is
+    // a warm no, because escalating it would not be fair to the owner who has
+    // been holding the dates.
+    agent: 'The owner can offer discretion outside the standard policy, yes, but I want to be honest with you about when we would ask them. If this is a genuine emergency or a serious personal or health situation, I will absolutely reach out to the owner on your behalf and put your case to them. If it is more that your plans have changed, though, that is not something we would take to the owner, because it would not be fair to them when they have held those dates for you. Can I ask a little more about what has brought this about?'
   };
   const q_proofOfCancel = {
     guest: 'Can I get written confirmation of the cancellation?',
@@ -1263,74 +1326,38 @@ function calculate() {
   };
   const q_changeDate = {
     guest: 'Can I move the dates instead of cancelling?',
-    agent: 'A date change is definitely something we can look into — it may actually be a better option depending on what\'s available. Changing dates doesn\'t always carry the same financial impact as a cancellation, so it\'s worth exploring. Let me check availability and come back to you on that.'
+    agent: 'A date change is definitely something we can look into, it may actually be a better option depending on what\'s available. Changing dates doesn\'t always carry the same financial impact as a cancellation, so it\'s worth exploring. Let me check availability and come back to you on that.'
   };
   const q_notMyFault = {
-    guest: 'It\'s not my fault I have to cancel — why should I lose money?',
-    agent: 'I completely understand your frustration, and I\'m sorry you\'re in this position. The cancellation policy is set by the platform and applies to all bookings regardless of the reason — it\'s not something we can override unilaterally. What I can do is explain exactly what you\'re entitled to under the policy, and if there are exceptional circumstances involved, I\'m happy to contact the owner on your behalf to see if they\'re willing to consider anything further.'
+    guest: 'It\'s not my fault I have to cancel, why should I lose money?',
+    agent: 'I completely understand your frustration, and I\'m sorry you\'re in this position. The cancellation policy is set by the platform and applies to all bookings regardless of the reason, it\'s not something we can override unilaterally. What I can do is explain exactly what you\'re entitled to under the policy, and if there are exceptional circumstances involved, I\'m happy to contact the owner on your behalf to see if they\'re willing to consider anything further.'
   };
   const q_complain = {
     guest: 'I want to make a complaint / speak to a manager.',
-    agent: 'Of course — I completely understand, and I\'m sorry this hasn\'t been the outcome you were hoping for. I\'ll make sure your concern is escalated and that someone follows up with you directly. Can I take the best contact details for you and confirm the best time to reach you?'
+    agent: 'Of course, I completely understand, and I\'m sorry this hasn\'t been the outcome you were hoping for. I\'ll make sure your concern is escalated and that someone follows up with you directly. Can I take the best contact details for you and confirm the best time to reach you?'
   };
 
   // ── BACHCARE DIRECT ──
   if (platform === 'bachcare') {
 
-    if (bachcareType === 'owner_unexpected') {
-      setOutputs({
-        daysText, confidence:'Standard outcome', confidenceClass:'safe',
-        result:'Owner Cancellation — Unexpected Event', tone:'warn',
-        simple:'The booking cannot go ahead due to an unexpected issue at the property. Rental charges are refunded. Bachcare service charges not yet provided (cleaning & linen) are refunded. The booking fee is not refunded.',
-        script: buildScript(
-          'Hi [guest name], thank you for your patience. I\'m sorry to have to share this, but unfortunately your booking can no longer go ahead due to an unexpected issue that has come up at the property. I want to make sure I explain clearly what this means for you. Under the direct booking policy, any rental charges you\'ve paid will be refunded in full. Any Bachcare service charges that haven\'t been provided yet — so that\'s cleaning and linen — will also be refunded. The booking fee, unfortunately, is not refundable under this scenario. I\'m really sorry for the disruption this has caused.',
-          [
-            {guest:'What\'s the unexpected issue?', agent:'I\'m not able to share the specific details on the owner\'s behalf, but it relates to something affecting the property or its availability — such as damage, urgent maintenance, a safety concern, or the property becoming unexpectedly unavailable. I can assure you this isn\'t a decision taken lightly.'},
-            {guest:'What counts as an unexpected event?', agent:'Under the policy, it covers situations affecting the property or its availability that were not foreseeable — things like property damage, urgent maintenance requirements, safety concerns, or the home becoming unavailable through no fault of either party.'},
-            {guest:'Why is the booking fee not refunded?', agent:'The booking fee is treated separately under the direct booking policy — it covers the administration of the booking itself rather than the stay, so it\'s not refundable in this scenario. I completely understand that\'s frustrating, and I\'m sorry I can\'t do more on that front.'},
-            {guest:'Can you help me find an alternative property?', agent:'Absolutely — I\'d be happy to check what else is available for your dates. Do you want me to have a look right now while I have you on the line?'},
-            {guest:'I\'ve already paid for flights / transport. Can I be compensated?', agent:'I\'m really sorry to hear that — that makes this situation even more difficult. Unfortunately, compensation for travel costs falls outside what we\'re able to offer under the cancellation policy. It\'s absolutely worth contacting your travel insurance provider though, as this type of situation is often covered. We can provide a cancellation confirmation letter if you need it for a claim.'},
-            q_howLong,
-            q_proofOfCancel,
-            q_complain
-          ]
-        ),
-        breakdownItems:[
-          {text:'Full refund of any rental charges paid', type:'refund'},
-          {text:'Full refund of Bachcare service charges not yet provided (cleaning & linen)', type:'refund'},
-          {text:'Booking fee — not refunded', type:'norefund'}
-        ],
-        copy:'Owner unexpected event cancellation. Refund: rental charges + Bachcare service charges not yet provided (cleaning & linen). Booking fee not refunded.',
-        nextsteps:[
-          'Advise the guest the booking cannot proceed and explain the refund components clearly.',
-          'Process the cancellation on your side and arrange the applicable refunds.',
-          'Note clearly in the record that the booking fee is not refundable in this scenario.',
-          'Offer to help the guest find an alternative property if they\'re still wanting to travel.',
-          'Provide a cancellation confirmation if requested for insurance purposes.',
-          'Add detailed notes explaining the nature of the unexpected event and all actions taken.'
-        ]
-      });
-      return;
-    }
-
     if (within48==='yes' && diff>30) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
         result:'Full Refund Applies', tone:'success',
-        simple:'Booking cancelled within 48 hours of creation and more than 30 days before check-in. Full refund applies — rental charges, cleaning, linen, and booking fee all returned.',
+        simple:'Booking cancelled within 48 hours of creation and more than 30 days before check-in. Full refund applies, rental charges, cleaning, linen, and booking fee all returned.',
         script: buildScript(
-          'Hi [guest name], no problem at all — I can help you with that. Because this booking was made within the last 48 hours and your check-in is more than 30 days away, you\'re eligible for a full refund under the Bachcare direct booking policy. That covers everything — the rental charges, Bachcare service charges which are cleaning and linen, and the booking fee. I\'ll get that sorted for you now. Is there anything else I can help with before we proceed?',
+          'Hi [guest name], no problem at all, I can help you with that. Because this booking was made within the last 48 hours and your check-in is more than 30 days away, you\'re eligible for a full refund under the Bachcare direct booking policy. That covers everything you have paid, so the rental charges, the booking fee, and any cleaning and linen that have been charged. I\'ll get that sorted for you now. Is there anything else I can help with before we proceed?',
           [
-            {guest:'So I get everything back?', agent:'Yes, absolutely — in this scenario the full refund applies across all charges including rental, cleaning and linen, and the booking fee. Nothing is held back.'},
+            {guest:'So I get everything back?', agent:'Yes, in this scenario a full refund applies to everything you have paid, so rental, the booking fee, and any cleaning and linen that have been charged. Nothing you have paid is held back.'},
             {guest:'How long will the refund take?', agent:'Once we\'ve processed the cancellation on our end, you can generally expect the refund to appear within 5 to 10 business days depending on your bank. We\'ll send you a confirmation once it\'s done.'},
-            {guest:'Can I rebook for different dates instead?', agent:'Of course — if you\'d like to look at alternative dates, I\'m happy to help with that once the cancellation is processed. Just let me know what works for you.'},
+            {guest:'Can I rebook for different dates instead?', agent:'Of course, if you\'d like to look at alternative dates, I\'m happy to help with that once the cancellation is processed. Just let me know what works for you.'},
             q_proofOfCancel,
             q_travelInsurance
           ]
         ),
         breakdownItems:[
           {text:'Full refund of rental charges', type:'refund'},
-          {text:'Full refund of Bachcare service charges (cleaning & linen)', type:'refund'},
+          {text:'Full refund of Bachcare service charges (cleaning & linen), but these are usually only charged from 30 days before check-in. Further out, the guest has normally paid just the 30% deposit which includes the booking fee, so there may be nothing here to refund yet. Check the booking before advising.', type:'refund'},
           {text:'Full refund of booking fee', type:'refund'}
         ],
         copy:'Cancelled within 48 hours of booking creation and more than 30 days before check-in. Full refund: rental charges + Bachcare service charges (cleaning & linen) + booking fee.',
@@ -1345,21 +1372,21 @@ function calculate() {
     }
 
     if (diff>365) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
         result:'More Than 12 Months Before Check-in', tone:'warn',
         simple:'50% of the rental deposit is refunded. Any rental paid above the required deposit is refunded in full. Cleaning & linen are refunded. The booking fee is not refunded.',
         script: buildScript(
-          'Hi [guest name], I can help you with this. Before I walk you through the refund position, I want to check — have you considered a change of dates, a change of property, or a reduction of nights? All three options are available to you at this stage and may work out better than cancelling. I\'m happy to look into any of them.\nIf a full cancellation is still what you need, here\'s where things stand. As your check-in is more than 12 months away, you\'ll receive 50% of the rental deposit back. Any rental paid above the required deposit is refunded in full. The Bachcare service charges — cleaning and linen — are also refunded. The booking fee is not refundable. I\'m sorry it\'s not a full refund.\nI also want to make sure you\'re aware — once we cancel, we immediately re-list those dates and actively try to re-book them. If the property does re-let, we pass back whatever rental is recovered to you less a $60 admin fee. So there is a real possibility of getting more back, though I can\'t guarantee it.\nWould you like to explore one of those alternatives first, or shall I go ahead with the cancellation?',
+          'Hi [guest name], I can help you with this. Before I walk you through the refund position, I want to check, have you considered a change of dates, a change of property, or a reduction of nights? All three options are available to you at this stage and may work out better than cancelling. I\'m happy to look into any of them.\nIf a full cancellation is still what you need, here\'s where things stand. As your check-in is more than 12 months away, you\'ll receive 50% of the rental deposit back. Any rental paid above the required deposit is refunded in full. Any Bachcare service charges that have been charged, cleaning and linen, are also refunded, though this far out those often have not been charged yet. The booking fee is not refundable. I\'m sorry it\'s not a full refund.\nI also want to make sure you\'re aware, once we cancel, we immediately re-list those dates and actively try to re-book them. If the property does re-let, we pass back whatever rental is recovered to you less a $60 admin fee. So there is a real possibility of getting more back, though I can\'t guarantee it.\nWould you like to explore one of those alternatives first, or shall I go ahead with the cancellation?',
           [
-            {guest:'Why is only half the deposit coming back?', agent:'The 50% deposit retention is part of the direct booking cancellation policy once the 48-hour grace period from booking creation has passed. Even this far out, the policy applies once that window has closed — it\'s not something we\'re able to waive, unfortunately.'},
-            {guest:'Why is the booking fee not refunded?', agent:'The booking fee is treated separately under the policy — it\'s not part of the rental or service charges, so it\'s not refundable when a guest cancels.'},
-            {guest:'What are service charges exactly?', agent:'The Bachcare service charges are the cleaning fee and linen fee. Both of those are refunded in this scenario.'},
-            {guest:'What if I just postpone instead?', agent:'Absolutely — a change of dates is definitely worth exploring. We can also look at a change of property or a reduction of nights if either of those would suit you better. Any of those options are available to you at this stage. Let me look into what\'s possible for your booking.'},
-            {guest:'What is the re-let policy exactly?', agent:'When you cancel, we immediately re-list those dates and actively try to get them re-booked. If another guest books any of your original dates through Bachcare, you may be entitled to get some of your rental back — it depends on how much you originally paid.\nIf you only paid a deposit: you can get back up to 30% of the rental the new guest paid for those days.\nIf you paid the full rental upfront: you can get back up to 100% of the rental the new guest paid for those days.\nEither way, a $60 admin fee is taken off first. The refund is only processed after the new guest has completed their stay — and if the amount after the $60 fee would be $60 or less, no refund is payable. We\'ll contact you directly if and when there\'s something to return to you.'},
-            {guest:'How much could I get back from the re-let?', agent:'It depends on two things — whether the property re-books and how much you originally paid.\nIf you only paid a deposit: you can receive up to 30% of the rental the new guest pays for your cancelled dates, minus the $60 admin fee.\nIf you paid the full rental upfront: you can receive up to 100% of the rental the new guest pays, minus the $60 admin fee.\nThe refund is only paid out after the new guest has stayed, and if the amount after the fee would be $60 or less, nothing is paid. We\'ll reach out to you directly if there\'s a refund to process.'},
-            {guest:'When would I get the re-let refund?', agent:'The refund is only calculated and paid out after the new guest has actually completed their stay — so it depends on when, and if, the property re-lets. We\'ll contact you directly once that happens. There\'s no timeframe we can give upfront because it depends entirely on whether and when the property re-books. Just to be clear — if the refund amount after the $60 admin fee would be $60 or less, no refund is payable.'},
-            {guest:'What if the property only partially re-lets my dates?', agent:'The re-let policy only applies to the days that actually overlap between your original dates and the new booking. So if only some of your days get re-booked, the refund calculation is based on just those re-let days — not your full booking period. It\'s still worth something, just proportional to how many of your dates were picked up.'},
+            {guest:'Why is only half the deposit coming back?', agent:'The 50% deposit retention is part of the direct booking cancellation policy once the 48-hour grace period from booking creation has passed. Even this far out, the policy applies once that window has closed, it\'s not something we\'re able to waive, unfortunately.'},
+            {guest:'Why is the booking fee not refunded?', agent:'The booking fee is treated separately under the policy, it\'s not part of the rental or service charges, so it\'s not refundable when a guest cancels.'},
+            {guest:'What are service charges exactly?', agent:'The Bachcare service charges are the cleaning fee and linen fee. Where those have been charged, they are refunded, though this far out they often have not been charged yet.'},
+            {guest:'What if I just postpone instead?', agent:'Absolutely, a change of dates is definitely worth exploring. We can also look at a change of property or a reduction of nights if either of those would suit you better. Any of those options are available to you at this stage. Let me look into what\'s possible for your booking.'},
+            {guest:'What is the re-let policy exactly?', agent:'When you cancel, we immediately re-list those dates and actively try to get them re-booked. If another guest books any of your original dates through Bachcare, you may be entitled to get some of your rental back, it depends on how much you originally paid.\nIf you only paid a deposit: you can get back up to 30% of the rental the new guest paid for those days.\nIf you paid the full rental upfront: you can get back up to 100% of the rental the new guest paid for those days.\nEither way, a $60 admin fee is taken off first. The refund is only processed after the new guest has completed their stay, and if the amount after the $60 fee would be $60 or less, no refund is payable. We\'ll contact you directly if and when there\'s something to return to you.'},
+            {guest:'How much could I get back from the re-let?', agent:'It depends on two things, whether the property re-books and how much you originally paid.\nIf you only paid a deposit: you can receive up to 30% of the rental the new guest pays for your cancelled dates, minus the $60 admin fee.\nIf you paid the full rental upfront: you can receive up to 100% of the rental the new guest pays, minus the $60 admin fee.\nThe refund is only paid out after the new guest has stayed, and if the amount after the fee would be $60 or less, nothing is paid. We\'ll reach out to you directly if there\'s a refund to process.'},
+            {guest:'When would I get the re-let refund?', agent:'The refund is only calculated and paid out after the new guest has actually completed their stay, so it depends on when, and if, the property re-lets. We\'ll contact you directly once that happens. There\'s no timeframe we can give upfront because it depends entirely on whether and when the property re-books. Just to be clear, if the refund amount after the $60 admin fee would be $60 or less, no refund is payable.'},
+            {guest:'What if the property only partially re-lets my dates?', agent:'The re-let policy only applies to the days that actually overlap between your original dates and the new booking. So if only some of your days get re-booked, the refund calculation is based on just those re-let days, not your full booking period. It\'s still worth something, just proportional to how many of your dates were picked up.'},
             q_ownerApproval,
             q_travelInsurance,
             q_proofOfCancel,
@@ -1370,15 +1397,15 @@ function calculate() {
         breakdownItems:[
           {text:'50% refund of the rental deposit', type:'conditional'},
           {text:'Full refund of any rental paid above the required deposit', type:'refund'},
-          {text:'Full refund of Bachcare service charges (cleaning & linen)', type:'refund'},
-          {text:'Booking fee — not refunded', type:'norefund'},
+          {text:'Full refund of Bachcare service charges (cleaning & linen), but these are usually only charged from 30 days before check-in. Further out, the guest has normally paid just the 30% deposit which includes the booking fee, so there may be nothing here to refund yet. Check the booking before advising.', type:'refund'},
+          {text:'Booking fee, not refunded', type:'norefund'},
           {text:'Re-let: if the property re-books for those dates, the recovered rental is passed back to the guest less a $60 admin fee', type:'conditional'}
         ],
-        copy:'More than 12 months before check-in. Refund: 50% of rental deposit + any rental above required deposit + Bachcare service charges (cleaning & linen). Booking fee not refunded. Re-let: property re-listed — if re-booked, recovered rental returned less $60 admin fee.',
+        copy:'More than 12 months before check-in. Refund: 50% of rental deposit + any rental above required deposit + Bachcare service charges (cleaning & linen). Booking fee not refunded. Re-let: property re-listed, if re-booked, recovered rental returned less $60 admin fee.',
         nextsteps:[
-          'Before discussing the refund — proactively offer a COD (Change of Date), COP (Change of Property), or RON (Reduction of Nights) as alternatives. The guest is outside 30 days so all three options are available.',
+          'Before discussing the refund, proactively offer a COD (Change of Date), COP (Change of Property), or RON (Reduction of Nights) as alternatives. The guest is outside 30 days so all three options are available.',
           'If the guest is open to any of these, check availability and confirm owner approval before making an offer.',
-          'If the guest confirms they want to cancel, walk them through the full refund breakdown clearly — including the re-let possibility.',
+          'If the guest confirms they want to cancel, walk them through the full refund breakdown clearly, including the re-let possibility.',
           'Process the cancellation and ensure the property is re-listed for those dates immediately.',
           'Advise the guest that if the property re-books, recovered rental will be refunded to them less a $60 admin fee.',
           'If exceptional circumstances are raised, offer to contact the owner to request discretion.',
@@ -1390,21 +1417,21 @@ function calculate() {
     }
 
     if (diff>30) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
         result:'More Than 30 Days Before Check-in', tone:'warn',
         simple:'Any rental paid above the required deposit is refunded. Cleaning & linen are refunded. The rental deposit is not refunded. The booking fee is not refunded.',
         script: buildScript(
-          'Hi [guest name], I can help you with that. Before I go through the refund position, I want to check — would a change of dates, a change of property, or a reduction of nights work for you? All three are available at this stage and could be a better outcome than cancelling. I\'m happy to look into whichever suits you best.\nIf a full cancellation is still what you need, here\'s what applies. As your check-in is more than 30 days away, any amount you\'ve paid above the required rental deposit will be refunded, and the Bachcare service charges — cleaning and linen — are also refunded. However, the rental deposit itself and the booking fee are not refundable.\nI also want to make sure you know — once we cancel, we immediately re-list those dates and actively try to re-book them. If the property does re-let, we pass back whatever rental is recovered to you less a $60 admin fee. So there is a real possibility of getting more back, though I can\'t guarantee it.\nWould you like to explore one of those alternatives first, or shall we go ahead with the cancellation?',
+          'Hi [guest name], I can help you with that. Before I go through the refund position, I want to check, would a change of dates, a change of property, or a reduction of nights work for you? All three are available at this stage and could be a better outcome than cancelling. I\'m happy to look into whichever suits you best.\nIf a full cancellation is still what you need, here\'s what applies. As your check-in is more than 30 days away, any amount you\'ve paid above the required rental deposit will be refunded, and any Bachcare service charges that have been charged, cleaning and linen, are also refunded, though this far out those often have not been. However, the rental deposit itself and the booking fee are not refundable.\nI also want to make sure you know, once we cancel, we immediately re-list those dates and actively try to re-book them. If the property does re-let, we pass back whatever rental is recovered to you less a $60 admin fee. So there is a real possibility of getting more back, though I can\'t guarantee it.\nWould you like to explore one of those alternatives first, or shall we go ahead with the cancellation?',
           [
-            {guest:'Why is the deposit not coming back?', agent:'Once the 48-hour grace period from booking creation has passed, the deposit is non-refundable under the direct booking policy at this stage — even with more than 30 days to go. It\'s designed to protect the property owner who has been holding those dates.'},
-            {guest:'Why is the booking fee not refunded?', agent:'The booking fee is separate from the rental and service charges under the policy — it\'s not refundable when a guest cancels.'},
-            {guest:'What exactly are the service charges?', agent:'The Bachcare service charges are the cleaning fee and linen fee. Both of those are refunded.'},
-            {guest:'What if I just change dates?', agent:'That\'s a really good option to look at — and we can also look at a change of property or a reduction of nights if either of those would suit you better. All three are available to you at this stage. Want me to check what\'s possible for your booking?'},
-            {guest:'What is the re-let policy exactly?', agent:'When you cancel, we immediately re-list those dates and actively try to get them re-booked. If another guest books any of your original dates through Bachcare, you may be entitled to get some of your rental back — it depends on how much you originally paid.\nIf you only paid a deposit: you can get back up to 30% of the rental the new guest paid for those days.\nIf you paid the full rental upfront: you can get back up to 100% of the rental the new guest paid for those days.\nEither way, a $60 admin fee is taken off first. The refund is only processed after the new guest has completed their stay — and if the amount after the $60 fee would be $60 or less, no refund is payable. We\'ll contact you directly if and when there\'s something to return to you.'},
-            {guest:'How much could I get back from the re-let?', agent:'It depends on two things — whether the property re-books and how much you originally paid.\nIf you only paid a deposit: you can receive up to 30% of the rental the new guest pays for your cancelled dates, minus the $60 admin fee.\nIf you paid the full rental upfront: you can receive up to 100% of the rental the new guest pays, minus the $60 admin fee.\nThe refund is only paid out after the new guest has stayed, and if the amount after the fee would be $60 or less, nothing is paid. We\'ll reach out to you directly if there\'s a refund to process.'},
-            {guest:'When would I get the re-let refund?', agent:'The refund is only calculated and paid out after the new guest has actually completed their stay — so it depends on when, and if, the property re-lets. We\'ll contact you directly once that happens. There\'s no timeframe we can give upfront because it depends entirely on whether and when the property re-books. Just to be clear — if the refund amount after the $60 admin fee would be $60 or less, no refund is payable.'},
-            {guest:'What if the property only partially re-lets my dates?', agent:'The re-let policy only applies to the days that actually overlap between your original dates and the new booking. So if only some of your days get re-booked, the refund calculation is based on just those re-let days — not your full booking period. It\'s still worth something, just proportional to how many of your dates were picked up.'},
+            {guest:'Why is the deposit not coming back?', agent:'Once the 48-hour grace period from booking creation has passed, the deposit is non-refundable under the direct booking policy at this stage, even with more than 30 days to go. It\'s designed to protect the property owner who has been holding those dates.'},
+            {guest:'Why is the booking fee not refunded?', agent:'The booking fee is separate from the rental and service charges under the policy, it\'s not refundable when a guest cancels.'},
+            {guest:'What exactly are the service charges?', agent:'The Bachcare service charges are the cleaning fee and linen fee. Where those have been charged, they are refunded, though this far out they often have not been charged yet.'},
+            {guest:'What if I just change dates?', agent:'That\'s a really good option to look at, and we can also look at a change of property or a reduction of nights if either of those would suit you better. All three are available to you at this stage. Want me to check what\'s possible for your booking?'},
+            {guest:'What is the re-let policy exactly?', agent:'When you cancel, we immediately re-list those dates and actively try to get them re-booked. If another guest books any of your original dates through Bachcare, you may be entitled to get some of your rental back, it depends on how much you originally paid.\nIf you only paid a deposit: you can get back up to 30% of the rental the new guest paid for those days.\nIf you paid the full rental upfront: you can get back up to 100% of the rental the new guest paid for those days.\nEither way, a $60 admin fee is taken off first. The refund is only processed after the new guest has completed their stay, and if the amount after the $60 fee would be $60 or less, no refund is payable. We\'ll contact you directly if and when there\'s something to return to you.'},
+            {guest:'How much could I get back from the re-let?', agent:'It depends on two things, whether the property re-books and how much you originally paid.\nIf you only paid a deposit: you can receive up to 30% of the rental the new guest pays for your cancelled dates, minus the $60 admin fee.\nIf you paid the full rental upfront: you can receive up to 100% of the rental the new guest pays, minus the $60 admin fee.\nThe refund is only paid out after the new guest has stayed, and if the amount after the fee would be $60 or less, nothing is paid. We\'ll reach out to you directly if there\'s a refund to process.'},
+            {guest:'When would I get the re-let refund?', agent:'The refund is only calculated and paid out after the new guest has actually completed their stay, so it depends on when, and if, the property re-lets. We\'ll contact you directly once that happens. There\'s no timeframe we can give upfront because it depends entirely on whether and when the property re-books. Just to be clear, if the refund amount after the $60 admin fee would be $60 or less, no refund is payable.'},
+            {guest:'What if the property only partially re-lets my dates?', agent:'The re-let policy only applies to the days that actually overlap between your original dates and the new booking. So if only some of your days get re-booked, the refund calculation is based on just those re-let days, not your full booking period. It\'s still worth something, just proportional to how many of your dates were picked up.'},
             q_ownerApproval,
             q_travelInsurance,
             q_proofOfCancel,
@@ -1415,16 +1442,16 @@ function calculate() {
         ),
         breakdownItems:[
           {text:'Full refund of any rental paid above the required deposit', type:'refund'},
-          {text:'Full refund of Bachcare service charges (cleaning & linen)', type:'refund'},
-          {text:'Rental deposit — not refunded', type:'norefund'},
-          {text:'Booking fee — not refunded', type:'norefund'},
+          {text:'Full refund of Bachcare service charges (cleaning & linen), but these are usually only charged from 30 days before check-in. Further out, the guest has normally paid just the 30% deposit which includes the booking fee, so there may be nothing here to refund yet. Check the booking before advising.', type:'refund'},
+          {text:'Rental deposit, not refunded', type:'norefund'},
+          {text:'Booking fee, not refunded', type:'norefund'},
           {text:'Re-let: if the property re-books for those dates, the recovered rental is passed back to the guest less a $60 admin fee', type:'conditional'}
         ],
-        copy:'More than 30 days before check-in. Refund: any rental above required deposit + Bachcare service charges (cleaning & linen). Rental deposit not refunded. Booking fee not refunded. Re-let: property re-listed — if re-booked, recovered rental returned less $60 admin fee.',
+        copy:'More than 30 days before check-in. Refund: any rental above required deposit + Bachcare service charges (cleaning & linen). Rental deposit not refunded. Booking fee not refunded. Re-let: property re-listed, if re-booked, recovered rental returned less $60 admin fee.',
         nextsteps:[
-          'Before discussing the refund — proactively offer a COD (Change of Date), COP (Change of Property), or RON (Reduction of Nights) as alternatives. The guest is outside 30 days so all three options are available.',
+          'Before discussing the refund, proactively offer a COD (Change of Date), COP (Change of Property), or RON (Reduction of Nights) as alternatives. The guest is outside 30 days so all three options are available.',
           'If the guest is open to any of these, check availability and confirm owner approval before making an offer.',
-          'If the guest confirms they want to cancel, explain the full breakdown clearly — including the re-let possibility.',
+          'If the guest confirms they want to cancel, explain the full breakdown clearly, including the re-let possibility.',
           'Process the cancellation and ensure the property is re-listed for those dates immediately.',
           'Advise the guest that if the property re-books, recovered rental will be refunded to them less a $60 admin fee.',
           'If exceptional circumstances are raised, offer to contact the owner for discretion.',
@@ -1435,20 +1462,20 @@ function calculate() {
       return;
     }
 
-    // Bachcare — within 48 hours of booking but within 30 days of check-in
+    // Bachcare, within 48 hours of booking but within 30 days of check-in
     if (within48==='yes') {
-      setOutputs({
+      return ({
         daysText, confidence:'Requires review', confidenceClass:'warning',
-        result:'Within 48 Hours of Booking — Policy Still Applies', tone:'warn',
+        result:'Within 48 Hours of Booking, Policy Still Applies', tone:'warn',
         simple:'Booked within 48 hours but check-in is within 30 days. The 48-hour grace period only applies when check-in is more than 30 days away. Policy applies as normal, but if there is a genuine mistake or tech issue this can be escalated for review.',
         script: buildScript(
-          'Hi [guest name], thank you for getting in touch so quickly. I can see this booking was made very recently, and I completely understand the urgency. I do need to be upfront with you — the 48-hour grace period for a full refund only applies when the check-in date is more than 30 days away. Because your check-in is within that window, the standard policy applies, which means rental charges are non-refundable at this point. I\'m really sorry about that. What I can tell you is that if there was a genuine mistake with the booking — for example, you booked the wrong dates or there was a technical issue — I can escalate this for an internal review. It\'s not a guarantee, but it\'s something we can look at. Would you like me to do that?',
+          'Hi [guest name], thank you for getting in touch so quickly. I can see this booking was made very recently, and I completely understand the urgency. I do need to be upfront with you, the 48-hour grace period for a full refund only applies when the check-in date is more than 30 days away. Because your check-in is within that window, the standard policy applies, which means rental charges are non-refundable at this point. I\'m really sorry about that. What I can tell you is that if there was a genuine mistake with the booking, for example, you booked the wrong dates or there was a technical issue, I can escalate this for an internal review. It\'s not a guarantee, but it\'s something we can look at. Would you like me to do that?',
           [
-            {guest:'I just made this booking by mistake.', agent:'I completely understand, and I\'m sorry you\'re in this situation. Because your check-in is within 30 days, the standard grace period doesn\'t apply automatically — but a genuine booking error is something we can escalate for review internally. I want to be upfront that it\'s not a guaranteed outcome, but I\'ll raise it and make sure it\'s assessed fairly. Can you confirm the nature of the mistake so I can note it accurately?'},
+            {guest:'I just made this booking by mistake.', agent:'I completely understand, and I\'m sorry you\'re in this situation. Because your check-in is within 30 days, the standard grace period doesn\'t apply automatically, but a genuine booking error is something we can escalate for review internally. I want to be upfront that it\'s not a guaranteed outcome, but I\'ll raise it and make sure it\'s assessed fairly. Can you confirm the nature of the mistake so I can note it accurately?'},
             {guest:'I had a technical issue and couldn\'t cancel in time.', agent:'If there was a technical issue on our end or with the platform that prevented you from cancelling, that\'s absolutely something we can escalate for review. Please let me know what happened so I can document it properly and raise it with the right team. I\'ll make sure it\'s looked at as a priority.'},
-            {guest:'Why doesn\'t the 48-hour rule apply?', agent:'The 48-hour grace period is designed to allow guests who book well in advance to change their mind without penalty. When a booking is made within 30 days of check-in, the property is effectively in a short-notice window and the owner is unlikely to be able to re-let it if we cancel — which is why the policy treats it differently. I know that\'s frustrating when you\'ve only just booked, and I\'m genuinely sorry.'},
-            {guest:'This is really unfair.', agent:'I completely understand why it feels that way, and I genuinely am sorry — there\'s nothing worse than feeling like you\'re being penalised when you acted quickly. I want to be honest with you rather than just read you a policy. The reason this window exists is to protect property owners from last-minute cancellations they can\'t recover from — it\'s not about catching guests out, it\'s about keeping the system fair for everyone involved. I wish I could give you a different answer, and I\'m not going to pretend that makes it easier to hear. So let me be really clear about where things stand if you do proceed with the cancellation. You will receive a refund of the cleaning and linen fees immediately. The rental charges are non-refundable under the policy — however, and this is important — if we cancel your booking now, we immediately re-list those dates on the market and actively work to get them rebooked. If those dates are picked up by another guest, we will refund you the rental amount recovered, minus a $60 administration fee. So there is a very real chance of getting the majority of your money back. We can\'t guarantee it — it depends on whether those dates rebook — but we will genuinely try, and I want you to know that. If there was also a genuine mistake or a technical issue involved in how this booking came about, that\'s something I can escalate for internal review as well. I want to make sure you leave this call knowing exactly what your options are and that we\'ve done everything we can for you.'},
-            {guest:'Can I just keep the booking then?', agent:'If you\'d like to keep the booking as it stands, absolutely — there\'s nothing stopping you from doing that. If you decide you do want to cancel, just let me know and we\'ll proceed. But there\'s no pressure to cancel right now.'},
+            {guest:'Why doesn\'t the 48-hour rule apply?', agent:'The 48-hour grace period is designed to allow guests who book well in advance to change their mind without penalty. When a booking is made within 30 days of check-in, the property is effectively in a short-notice window and the owner is unlikely to be able to re-let it if we cancel, which is why the policy treats it differently. I know that\'s frustrating when you\'ve only just booked, and I\'m genuinely sorry.'},
+            {guest:'This is really unfair.', agent:'I completely understand why it feels that way, and I genuinely am sorry, there\'s nothing worse than feeling like you\'re being penalised when you acted quickly. I want to be honest with you rather than just read you a policy. The reason this window exists is to protect property owners from last-minute cancellations they can\'t recover from, it\'s not about catching guests out, it\'s about keeping the system fair for everyone involved. I wish I could give you a different answer, and I\'m not going to pretend that makes it easier to hear. So let me be really clear about where things stand if you do proceed with the cancellation. You will receive a refund of any cleaning and linen fees that have been charged. The rental charges are non-refundable under the policy, however, and this is important, if we cancel your booking now, we immediately re-list those dates on the market and actively work to get them rebooked. If those dates are picked up by another guest, we will refund you the rental amount recovered, minus a $60 administration fee. So there is a very real chance of getting the majority of your money back. We can\'t guarantee it, it depends on whether those dates rebook, but we will genuinely try, and I want you to know that. If there was also a genuine mistake or a technical issue involved in how this booking came about, that\'s something I can escalate for internal review as well. I want to make sure you leave this call knowing exactly what your options are and that we\'ve done everything we can for you.'},
+            {guest:'Can I just keep the booking then?', agent:'If you\'d like to keep the booking as it stands, absolutely, there\'s nothing stopping you from doing that. If you decide you do want to cancel, just let me know and we\'ll proceed. But there\'s no pressure to cancel right now.'},
             q_travelInsurance,
             q_proofOfCancel,
             q_tragic,
@@ -1456,16 +1483,16 @@ function calculate() {
           ]
         ),
         breakdownItems:[
-          {text:'Rental charges — non-refundable under policy', type:'norefund'},
-          {text:'Bachcare service charges (cleaning & linen) — refunded', type:'refund'},
-          {text:'Booking fee — not refunded', type:'norefund'},
-          {text:'Genuine mistake or tech issue — may be escalated for review', type:'conditional'}
+          {text:'Rental charges, non-refundable under policy', type:'norefund'},
+          {text:'Bachcare service charges (cleaning & linen), refunded. From 30 days before check-in these are usually charged, so they normally have been paid, but confirm on the booking before advising.', type:'refund'},
+          {text:'Booking fee, not refunded', type:'norefund'},
+          {text:'Genuine mistake or tech issue, may be escalated for review', type:'conditional'}
         ],
         copy:'Booked within 48 hours but within 30 days of check-in. Grace period does not apply. Policy stands. Genuine mistakes or tech issues can be escalated for review.',
         nextsteps:[
           'Confirm whether the cancellation request is due to a genuine booking mistake or a technical issue.',
-          'If yes — escalate for internal review and advise the guest it is not guaranteed.',
-          'If not a mistake or tech issue — apply the standard 30-day policy.',
+          'If yes, escalate for internal review and advise the guest it is not guaranteed.',
+          'If not a mistake or tech issue, apply the standard 30-day policy.',
           'Re-emphasise the re-let option as the best avenue to recover rental costs.',
           'Do not process the cancellation until the guest has confirmed they want to proceed.',
           'Record full notes on the reason for cancellation and what was discussed.'
@@ -1474,24 +1501,23 @@ function calculate() {
       return;
     }
 
-    // Bachcare — 30 days or less
-    setOutputs({
+    // Bachcare, 30 days or less
+    return ({
       daysText, confidence:'Re-let dependent', confidenceClass:'warning',
       result:'30 Days or Less Before Check-in', tone:'danger',
       simple:'Cleaning & linen are refunded. Rental charges are not refunded. Booking fee is not refunded. If the property re-lets for those dates, there may be an additional refund less a $60 admin fee.',
       script: buildScript(
-        'Hi [guest name], thank you for calling. I can hear this is a difficult situation, and I want to make sure we explore every option first. One thing worth checking — is moving your dates earlier something that could work? Within 30 days we can only move dates closer, not push them out, but it\'s worth asking.\nIf a cancellation is the only option, I need to be upfront. As your booking is within 30 days of check-in, the rental charges are unfortunately non-refundable. What is refunded are the Bachcare service charges — cleaning and linen. The booking fee is also not refundable.\nHowever, once we cancel, we immediately re-list those dates and actively try to re-book them. If the property does re-let, we pass back whatever rental is recovered to you less a $60 admin fee. So there is a real possibility of getting more back.\nWould you like to look at moving the dates earlier, or shall we talk through the cancellation?',
+        'Hi [guest name], thank you for calling. I can hear this is a difficult situation, and I want to make sure we explore every option first. One thing worth checking, is moving your dates earlier something that could work? Within 30 days we can only move dates closer, not push them out, but it\'s worth asking.\nIf a cancellation is the only option, I need to be upfront. As your booking is within 30 days of check-in, the rental charges are unfortunately non-refundable. What is refunded are any Bachcare service charges that have been charged, cleaning and linen, which at this stage have usually been paid. The booking fee is also not refundable.\nHowever, once we cancel, we immediately re-list those dates and actively try to re-book them. If the property does re-let, we pass back whatever rental is recovered to you less a $60 admin fee. So there is a real possibility of getting more back.\nWould you like to look at moving the dates earlier, or shall we talk through the cancellation?',
         [
-          {guest:'So I\'m losing all the rental money?', agent:'Under the policy, the rental charges are non-refundable at this point — I\'m really sorry about that. The cleaning and linen fees are refunded. And if the property re-lets for your dates, we will refund whatever we recover from that re-booking, less the $60 admin fee. It\'s not guaranteed, but we will actively try to re-let it.'},
-          {guest:'What does re-let mean exactly?', agent:'Re-letting means we put the property back on the market for your cancelled dates. If another guest books through Bachcare for any of those days, you may get some of your rental back for the days that overlap. The amount depends on what you originally paid — if you only paid a deposit, you can get back up to 30% of what the new guest pays for those days. If you paid the full rental upfront, you can get back up to 100% of it. Either way, a $60 admin fee is deducted first. The refund is only processed after the new guest has stayed, and only if the amount after the fee is more than $60.'},
-          {guest:'How quickly will I get the re-let refund if the property re-books?', agent:'The refund is only calculated and paid once the new guest has completed their stay — so it depends entirely on whether and when the property re-books. We\'ll contact you directly once there\'s something to process. If the refund after the $60 admin fee would be $60 or less, no refund is payable under the policy.'},
-          {guest:'If the property doesn\'t get rebooked, can I just keep my booking?', agent:'Unfortunately no — once a cancellation is confirmed and processed, it can\'t be reversed. The booking will be closed off on our end and the dates re-listed. It\'s important to be sure before we proceed, which is why I\'d encourage you to take a moment and confirm you definitely want to go ahead with the cancellation.'},
-          {guest:'What if the property only partially re-lets my dates?', agent:'The re-let policy only applies to the days that actually overlap between your original dates and the new booking. So if only some of your days get re-booked, the refund calculation is based on just those re-let days — not your full booking period. It\'s still worth something, just proportional to how many of your dates were picked up.'},
-          {guest:'What if the property only partially re-lets my dates?', agent:'The re-let policy only applies to the days that actually overlap between your original dates and the new booking. So if only some of your days get re-booked, the refund calculation is based on just those re-let days — not your full booking period. It\'s still worth something, just proportional to how many of your dates were picked up.'},
-          {guest:'What if the property only partially re-lets my dates?', agent:'The re-let policy only applies to the days that actually overlap between your original dates and the new booking. So if only some of your days get re-booked, the refund calculation is based on just those re-let days — not your full booking period. It\'s still worth something, just proportional to how many of your dates were picked up.'},
-          {guest:'Can you waive the policy?', agent:'I completely understand why you\'re asking, and I\'m sorry I don\'t have better news. The policy is based on the timing of the cancellation and isn\'t something I\'m able to override.\nIf this is a genuine emergency or exceptional circumstance — such as a serious illness or bereavement — I can absolutely raise that with the property owner on your behalf.\nHowever, if the reason is simply that the dates are no longer needed, that isn\'t something we\'d escalate to the owner as it wouldn\'t be fair to them. In that case, the policy as outlined is what applies.'},
-          {guest:'What if I just don\'t show up instead of cancelling?', agent:'I\'d strongly advise against that — if you don\'t cancel and simply don\'t arrive, you\'d still lose the rental charges but we also wouldn\'t be able to re-list the property, which removes any chance of recovering anything. Cancelling gives you the best possible outcome under the circumstances.'},
-          {guest:'Can I change the dates instead?', agent:'Within 30 days the only date change we can offer is moving your dates earlier — closer to now. We\'re not able to push them out further at this stage. If moving your stay sooner is something that would work for you, I\'m happy to check what\'s available. Would that be an option?'},
+          {guest:'So I\'m losing all the rental money?', agent:'Under the policy, the rental charges are non-refundable at this point, I\'m really sorry about that. Any cleaning and linen fees that have been charged are refunded. And if the property re-lets for your dates, we will refund whatever we recover from that re-booking, less the $60 admin fee. It\'s not guaranteed, but we will actively try to re-let it.'},
+          {guest:'What does re-let mean exactly?', agent:'Re-letting means we put the property back on the market for your cancelled dates. If another guest books through Bachcare for any of those days, you may get some of your rental back for the days that overlap. The amount depends on what you originally paid, if you only paid a deposit, you can get back up to 30% of what the new guest pays for those days. If you paid the full rental upfront, you can get back up to 100% of it. Either way, a $60 admin fee is deducted first. The refund is only processed after the new guest has stayed, and only if the amount after the fee is more than $60.'},
+          {guest:'How quickly will I get the re-let refund if the property re-books?', agent:'The refund is only calculated and paid once the new guest has completed their stay, so it depends entirely on whether and when the property re-books. We\'ll contact you directly once there\'s something to process. If the refund after the $60 admin fee would be $60 or less, no refund is payable under the policy.'},
+          {guest:'If the property doesn\'t get rebooked, can I just keep my booking?', agent:'Unfortunately no, once a cancellation is confirmed and processed, it can\'t be reversed. The booking will be closed off on our end and the dates re-listed. It\'s important to be sure before we proceed, which is why I\'d encourage you to take a moment and confirm you definitely want to go ahead with the cancellation.'},
+          // The toolbox carried this same exchange three times over; once is enough.
+          {guest:'What if the property only partially re-lets my dates?', agent:'The re-let policy only applies to the days that actually overlap between your original dates and the new booking. So if only some of your days get re-booked, the refund calculation is based on just those re-let days, not your full booking period. It\'s still worth something, just proportional to how many of your dates were picked up.'},
+          {guest:'Can you waive the policy?', agent:'I completely understand why you\'re asking, and I\'m sorry I don\'t have better news. The policy is based on the timing of the cancellation and isn\'t something I\'m able to override.\nIf this is a genuine emergency or exceptional circumstance, such as a serious illness or bereavement, I can absolutely raise that with the property owner on your behalf.\nHowever, if the reason is simply that the dates are no longer needed, that isn\'t something we\'d escalate to the owner as it wouldn\'t be fair to them. In that case, the policy as outlined is what applies.'},
+          {guest:'What if I just don\'t show up instead of cancelling?', agent:'I\'d strongly advise against that, if you don\'t cancel and simply don\'t arrive, you\'d still lose the rental charges but we also wouldn\'t be able to re-list the property, which removes any chance of recovering anything. Cancelling gives you the best possible outcome under the circumstances.'},
+          {guest:'Can I change the dates instead?', agent:'Within 30 days the only date change we can offer is moving your dates earlier, closer to now. We\'re not able to push them out further at this stage. If moving your stay sooner is something that would work for you, I\'m happy to check what\'s available. Would that be an option?'},
           q_travelInsurance,
           q_proofOfCancel,
           q_notMyFault,
@@ -1500,14 +1526,14 @@ function calculate() {
         ]
       ),
       breakdownItems:[
-        {text:'Full refund of Bachcare service charges (cleaning & linen)', type:'refund'},
-        {text:'Rental charges — not refunded', type:'norefund'},
-        {text:'Booking fee — not refunded', type:'norefund'},
+        {text:'Full refund of Bachcare service charges (cleaning & linen). From 30 days before check-in these are usually charged, so they normally have been paid, but confirm on the booking before advising.', type:'refund'},
+        {text:'Rental charges, not refunded', type:'norefund'},
+        {text:'Booking fee, not refunded', type:'norefund'},
         {text:'If property re-lets: possible additional refund less $60 admin fee', type:'conditional'}
       ],
       copy:'Within 30 days of check-in. Refund: Bachcare service charges (cleaning & linen). Rental charges not refunded. Booking fee not refunded. If property re-lets, guest may receive more back less $60 admin fee.',
       nextsteps:[
-        'Before anything else — check if moving the dates earlier (closer to today) works for the guest. Within 30 days a COD can only move dates sooner, not push them out. COP and RON are not available at this stage.',
+        'Before anything else, check if moving the dates earlier (closer to today) works for the guest. Within 30 days a COD can only move dates sooner, not push them out. COP and RON are not available at this stage.',
         'If the guest is open to earlier dates, check availability and confirm owner approval before making an offer.',
         'If the guest confirms they want to cancel, explain the full breakdown including the re-let possibility.',
         'Process the cancellation and ensure the property is re-listed for those dates.',
@@ -1524,16 +1550,16 @@ function calculate() {
   if (platform === 'airbnb') {
 
     if (within48==='yes' && diff<14) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
-        result:'No Grace Period — Policy Applies', tone:'danger',
+        result:'No Grace Period, Policy Applies', tone:'danger',
         simple:'Booked within 48 hours but check-in is less than 14 days away. The 48-hour grace period does not apply. Airbnb cancellation policy applies as standard.',
         script: buildScript(
-          'Hi [guest name], thank you for getting in touch so quickly. I can see the booking was just made, and I completely understand why you\'d expect a full refund. I do need to be upfront with you — the 48-hour grace period under the Airbnb policy only applies when check-in is at least 14 days away. Because your check-in is within that window, the standard Airbnb cancellation policy applies. I\'m really sorry — I know that\'s not the answer you were hoping for. For Airbnb bookings, you would need to cancel through your Airbnb portal directly, and the refund outcome would be based on the standard policy for your timing.',
+          'Hi [guest name], thank you for getting in touch so quickly. I can see the booking was just made, and I completely understand why you\'d expect a full refund. I do need to be upfront with you, the 48-hour grace period under the Airbnb policy only applies when check-in is at least 14 days away. Because your check-in is within that window, the standard Airbnb cancellation policy applies. I\'m really sorry, I know that\'s not the answer you were hoping for. For Airbnb bookings, you would need to cancel through your Airbnb portal directly, and the refund outcome would be based on the standard policy for your timing.',
           [
-            {guest:'That doesn\'t seem right — I just booked it.', agent:'I completely understand why it feels that way, and I\'m genuinely sorry. The grace period is a platform rule that specifically requires check-in to be more than 14 days away. Because you\'re within that window, the standard Airbnb policy kicks in regardless of how recently the booking was made. I wish I had better news.'},
-            {guest:'Can you do anything on your end?', agent:'For Airbnb bookings, refunds and cancellations are processed through Airbnb\'s own system — we\'re not able to override their platform policy from our side. I\'d recommend cancelling through your Airbnb app and checking what refund Airbnb confirms before finalising it, so you know exactly where you stand.'},
-            {guest:'What will I actually get back?', agent:'The refund you\'d receive depends on the standard Airbnb cancellation policy for your booking. When you initiate the cancellation in the Airbnb app, it will show you the refund amount before you confirm — I\'d strongly recommend checking that first so there are no surprises.'},
+            {guest:'That doesn\'t seem right, I just booked it.', agent:'I completely understand why it feels that way, and I\'m genuinely sorry. The grace period is a platform rule that specifically requires check-in to be more than 14 days away. Because you\'re within that window, the standard Airbnb policy kicks in regardless of how recently the booking was made. I wish I had better news.'},
+            {guest:'Can you do anything on your end?', agent:'For Airbnb bookings, refunds and cancellations are processed through Airbnb\'s own system, we\'re not able to override their platform policy from our side. I\'d recommend cancelling through your Airbnb app and checking what refund Airbnb confirms before finalising it, so you know exactly where you stand.'},
+            {guest:'What will I actually get back?', agent:'The refund you\'d receive depends on the standard Airbnb cancellation policy for your booking. When you initiate the cancellation in the Airbnb app, it will show you the refund amount before you confirm, I\'d strongly recommend checking that first so there are no surprises.'},
             q_travelInsurance,
             q_proofOfCancel,
             q_tragic,
@@ -1541,7 +1567,7 @@ function calculate() {
           ]
         ),
         breakdownItems:[
-          {text:'48-hour grace period does not apply — check-in less than 14 days away', type:'norefund'},
+          {text:'48-hour grace period does not apply, check-in less than 14 days away', type:'norefund'},
           {text:'Standard Airbnb cancellation policy applies', type:'action'},
           {text:'Guest must cancel through Airbnb portal', type:'action'}
         ],
@@ -1549,7 +1575,7 @@ function calculate() {
         nextsteps:[
           'Explain clearly why the grace period does not apply in this scenario.',
           'Advise the guest to check the refund amount in the Airbnb app before confirming cancellation.',
-          'Do not advise a specific refund amount — direct them to the Airbnb portal for confirmation.',
+          'Do not advise a specific refund amount, direct them to the Airbnb portal for confirmation.',
           'Record notes on the outcome and what was explained.'
         ]
       });
@@ -1557,16 +1583,16 @@ function calculate() {
     }
 
     if (within48==='yes' && diff>=14) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
         result:'Full Refund Applies', tone:'success',
         simple:'Booking cancelled within 48 hours of creation and at least 14 days before check-in. Full refund under Airbnb policy. Guest must cancel through their Airbnb portal.',
         script: buildScript(
-          'Hi [guest name], good news — I can confirm you\'re eligible for a full refund. Because this booking was made within the last 48 hours and your check-in is at least 14 days away, a full refund applies under the Airbnb policy. The one thing to know is that for Airbnb bookings, the refund is triggered through Airbnb\'s system, so you\'ll need to action the cancellation directly in your Airbnb app or on the Airbnb website. Once you do that, the refund will be initiated automatically. Do you need help finding where to do that?',
+          'Hi [guest name], good news, I can confirm you\'re eligible for a full refund. Because this booking was made within the last 48 hours and your check-in is at least 14 days away, a full refund applies under the Airbnb policy. The one thing to know is that for Airbnb bookings, the refund is triggered through Airbnb\'s system, so you\'ll need to action the cancellation directly in your Airbnb app or on the Airbnb website. Once you do that, the refund will be initiated automatically. Do you need help finding where to do that?',
           [
-            {guest:'Can\'t you cancel it for me?', agent:'With Airbnb bookings, the refund is only triggered when you cancel through the Airbnb platform directly — we\'re not able to initiate that refund from our side. It\'s a quick process through the app or website though, and I\'m happy to talk you through it if you need help.'},
-            {guest:'Why do I have to cancel it myself?', agent:'It\'s how Airbnb\'s system works — the refund is processed through their platform and is only triggered when the cancellation is initiated there. We don\'t have the ability to action it on their system from our end.'},
-            {guest:'What if I can\'t find where to cancel in Airbnb?', agent:'No problem — go to your Airbnb app or website, go to \'Trips\', find this booking, and you should see a \'Cancel\' option there. If you\'re still having trouble, Airbnb\'s support team can also walk you through it directly.'},
+            {guest:'Can\'t you cancel it for me?', agent:'With Airbnb bookings, the refund is only triggered when you cancel through the Airbnb platform directly, we\'re not able to initiate that refund from our side. It\'s a quick process through the app or website though, and I\'m happy to talk you through it if you need help.'},
+            {guest:'Why do I have to cancel it myself?', agent:'It\'s how Airbnb\'s system works, the refund is processed through their platform and is only triggered when the cancellation is initiated there. We don\'t have the ability to action it on their system from our end.'},
+            {guest:'What if I can\'t find where to cancel in Airbnb?', agent:'No problem, go to your Airbnb app or website, go to \'Trips\', find this booking, and you should see a \'Cancel\' option there. If you\'re still having trouble, Airbnb\'s support team can also walk you through it directly.'},
             {guest:'How long will my refund take?', agent:'Once you\'ve cancelled through Airbnb, the refund is typically processed within 10 business days depending on your payment method. Airbnb will send you a confirmation once it\'s initiated.'},
             q_proofOfCancel,
             q_travelInsurance
@@ -1588,16 +1614,16 @@ function calculate() {
     }
 
     if (diff>30) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
         result:'Full Refund Applies', tone:'success',
-        simple:'More than 30 days before check-in — full refund under Airbnb policy. Guest must cancel through their Airbnb portal.',
+        simple:'More than 30 days before check-in, full refund under Airbnb policy. Guest must cancel through their Airbnb portal.',
         script: buildScript(
-          'Hi [guest name], I can confirm that a full refund applies in your situation. As your check-in is more than 30 days away, you\'re within the full-refund window under the Airbnb policy. To get that refund issued, you\'ll need to cancel the booking directly through your Airbnb portal — the refund is processed through their system. Once you\'ve cancelled, Airbnb will initiate the refund automatically. Is there anything else I can help with?',
+          'Hi [guest name], I can confirm that a full refund applies in your situation. As your check-in is more than 30 days away, you\'re within the full-refund window under the Airbnb policy. To get that refund issued, you\'ll need to cancel the booking directly through your Airbnb portal, the refund is processed through their system. Once you\'ve cancelled, Airbnb will initiate the refund automatically. Is there anything else I can help with?',
           [
-            {guest:'Can\'t you cancel it from your end?', agent:'For Airbnb bookings, the refund is only triggered when you cancel through the Airbnb platform directly — we can\'t initiate refunds through Airbnb\'s system from our side. You\'ll need to do it via the Airbnb app or website.'},
+            {guest:'Can\'t you cancel it from your end?', agent:'For Airbnb bookings, the refund is only triggered when you cancel through the Airbnb platform directly, we can\'t initiate refunds through Airbnb\'s system from our side. You\'ll need to do it via the Airbnb app or website.'},
             {guest:'How do I cancel in Airbnb?', agent:'Log in to your Airbnb account, go to \'Trips\', find this reservation, and select the cancel option. Airbnb will walk you through it from there and confirm the refund.'},
-            {guest:'What if I want to change dates instead?', agent:'If you\'d like to look at alternative dates, feel free — a date change at this stage shouldn\'t carry any financial penalty. Just reach out once you know what dates you\'d like and we can check availability.'},
+            {guest:'What if I want to change dates instead?', agent:'If you\'d like to look at alternative dates, feel free, a date change at this stage shouldn\'t carry any financial penalty. Just reach out once you know what dates you\'d like and we can check availability.'},
             q_howLong,
             q_proofOfCancel,
             q_travelInsurance
@@ -1618,18 +1644,18 @@ function calculate() {
     }
 
     if (diff>=7) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
         result:'50% Refund Applies', tone:'warn',
-        simple:'Between 7 and 30 days before check-in — 50% refund under Airbnb policy. Guest must cancel through their Airbnb portal.',
+        simple:'Between 7 and 30 days before check-in, 50% refund under Airbnb policy. Guest must cancel through their Airbnb portal.',
         script: buildScript(
-          'Hi [guest name], thank you for getting in touch. I want to be transparent with you about where things stand. As your check-in is between 7 and 30 days away, a 50% refund applies under the Airbnb cancellation policy. I know that\'s not the news you were hoping for, and I\'m sorry. To trigger that refund, you\'ll need to cancel the booking directly through your Airbnb portal — it\'s processed through their system. Before you make that decision, is there anything else we can look at, like a date change?',
+          'Hi [guest name], thank you for getting in touch. I want to be transparent with you about where things stand. As your check-in is between 7 and 30 days away, a 50% refund applies under the Airbnb cancellation policy. I know that\'s not the news you were hoping for, and I\'m sorry. To trigger that refund, you\'ll need to cancel the booking directly through your Airbnb portal, it\'s processed through their system. Before you make that decision, is there anything else we can look at, like a date change?',
           [
-            {guest:'Why only 50%?', agent:'Under the Airbnb policy, once you\'re inside the 30-day window before check-in, the full refund is no longer available. The policy moves to a 50% refund at this stage — it\'s a platform rule that applies to all bookings under this policy type.'},
-            {guest:'Why am I being penalised? It\'s not my fault.', agent:'I completely understand your frustration — it\'s a really difficult position to be in. The 50% rule is a platform policy that applies based on the timing of the cancellation, regardless of the reason. It\'s not something we have discretion over, but I can contact the property owner on your behalf if there are exceptional circumstances — they do have the ability to offer more.'},
+            {guest:'Why only 50%?', agent:'Under the Airbnb policy, once you\'re inside the 30-day window before check-in, the full refund is no longer available. The policy moves to a 50% refund at this stage, it\'s a platform rule that applies to all bookings under this policy type.'},
+            {guest:'Why am I being penalised? It\'s not my fault.', agent:'I completely understand your frustration, it\'s a really difficult position to be in. The 50% rule is a platform policy that applies based on the timing of the cancellation, regardless of the reason. It\'s not something we have discretion over, but I can contact the property owner on your behalf if there are exceptional circumstances, they do have the ability to offer more.'},
             {guest:'Can you cancel it from your side?', agent:'For Airbnb bookings, the refund is only triggered when you cancel directly in the Airbnb portal. We can\'t action the refund through Airbnb\'s system from our end.'},
             {guest:'How do I cancel in Airbnb?', agent:'Log in to your Airbnb account, go to \'Trips\', select this booking, and you\'ll see the option to cancel. Airbnb will confirm the refund amount before you finalise it.'},
-            {guest:'Can I change dates instead of cancelling?', agent:'For Airbnb bookings, date changes are managed through the Airbnb portal directly — you\'d need to check in your app or on the Airbnb website to see if the option is available for your booking. I\'d recommend checking there first as Airbnb\'s own policies on this can change, and I wouldn\'t want to advise you on something that may not apply. If you do have the option, it\'s worth exploring before committing to a cancellation.'},
+            {guest:'Can I change dates instead of cancelling?', agent:'For Airbnb bookings, date changes are managed through the Airbnb portal directly, you\'d need to check in your app or on the Airbnb website to see if the option is available for your booking. I\'d recommend checking there first as Airbnb\'s own policies on this can change, and I wouldn\'t want to advise you on something that may not apply. If you do have the option, it\'s worth exploring before committing to a cancellation.'},
             q_travelInsurance,
             q_proofOfCancel,
             q_ownerApproval,
@@ -1653,18 +1679,18 @@ function calculate() {
       return;
     }
 
-    // Airbnb — less than 7 days
-    setOutputs({
+    // Airbnb, less than 7 days
+    return ({
       daysText, confidence:'Standard outcome', confidenceClass:'safe',
       result:'No Refund Applies', tone:'danger',
-      simple:'Less than 7 days before check-in — no refund available under the Airbnb policy.',
+      simple:'Less than 7 days before check-in, no refund available under the Airbnb policy.',
       script: buildScript(
-        'Hi [guest name], thank you for calling. I\'m really sorry to be the bearer of difficult news. As your check-in is less than 7 days away, a refund is unfortunately not available under the Airbnb cancellation policy at this point. I completely understand how frustrating that is, and I wish I had better news. Is there anything I can help you explore — like whether the stay can still go ahead, or if there are exceptional circumstances I can raise with the property owner?',
+        'Hi [guest name], thank you for calling. I\'m really sorry to be the bearer of difficult news. As your check-in is less than 7 days away, a refund is unfortunately not available under the Airbnb cancellation policy at this point. I completely understand how frustrating that is, and I wish I had better news. Is there anything I can help you explore, like whether the stay can still go ahead, or if there are exceptional circumstances I can raise with the property owner?',
         [
-          {guest:'There has to be something you can do.', agent:'I genuinely wish I could do more. The Airbnb policy at this stage doesn\'t allow for a refund, and it\'s not something I\'m able to override on the platform. What I can do is contact the property owner directly to explain your situation and ask if they\'re willing to consider discretion — that\'s entirely their call, but I\'m happy to try. Would you like me to do that?'},
-          {guest:'Can you make an exception?', agent:'The policy at this point doesn\'t allow for a refund, and I\'m not able to override Airbnb\'s platform rules. However, if there are exceptional circumstances — a medical emergency, a bereavement, or something similar — I can reach out to the owner on your behalf to see if they\'re willing to go outside of the policy. It\'s not guaranteed, but it\'s worth trying.'},
+          {guest:'There has to be something you can do.', agent:'I genuinely wish I could do more, and I don\'t want to give you false hope. The Airbnb policy at this stage doesn\'t allow a refund, and it\'s not something I can override on the platform. If there is a genuine emergency or a serious personal or health situation behind this, I will absolutely reach out to the property owner and ask them to consider discretion, that is their decision but I am happy to advocate for you. If it is simply a change of plans, though, I\'m afraid the policy is what applies, and I\'m sorry that isn\'t the answer you were hoping for. Can I ask what has prompted the cancellation?'},
+          {guest:'Can you make an exception?', agent:'The policy at this point doesn\'t allow for a refund, and I\'m not able to override Airbnb\'s platform rules. However, if there are exceptional circumstances, a medical emergency, a bereavement, or something similar, I can reach out to the owner on your behalf to see if they\'re willing to go outside of the policy. It\'s not guaranteed, but it\'s worth trying.'},
           {guest:'Why am I not getting anything back?', agent:'The no-refund window under the Airbnb policy kicks in when the check-in is less than 7 days away. It\'s based purely on the timing of the cancellation rather than the reason for it, unfortunately.'},
-          {guest:'What about Airbnb\'s extenuating circumstances policy?', agent:'Airbnb does have an extenuating circumstances policy that covers certain events outside a guest\'s control, such as natural disasters, government travel restrictions, or serious illness. If you believe your situation may qualify, it\'s worth applying directly through Airbnb — they assess those requests separately from the standard cancellation policy.'},
+          {guest:'What about Airbnb\'s extenuating circumstances policy?', agent:'Airbnb does have an extenuating circumstances policy that covers certain events outside a guest\'s control, such as natural disasters, government travel restrictions, or serious illness. If you believe your situation may qualify, it\'s worth applying directly through Airbnb, they assess those requests separately from the standard cancellation policy.'},
           {guest:'Can I just not show up?', agent:'I\'d strongly advise against that. If you simply don\'t arrive without cancelling, you\'d lose the same amount but also create a \'no-show\' on your Airbnb account which can affect future bookings. Cancelling formally is the better option regardless.'},
           q_travelInsurance,
           q_proofOfCancel,
@@ -1691,16 +1717,16 @@ function calculate() {
   if (platform === 'booking') {
 
     if (within48==='yes' && diff<7) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
-        result:'No Grace Period — Policy Applies', tone:'danger',
+        result:'No Grace Period, Policy Applies', tone:'danger',
         simple:'Booked within 48 hours but check-in is less than 7 days away. The 48-hour grace period does not apply. Booking.com cancellation policy applies as standard.',
         script: buildScript(
-          'Hi [guest name], thank you for getting in touch so quickly. I can see the booking was just made, and I understand why you\'d expect to be covered. I do need to be upfront — the 48-hour grace period under Booking.com\'s policy only applies when check-in is at least 7 days away. Because your check-in is within that window, the standard Booking.com cancellation policy applies. I\'m sorry — I know that\'s not the news you were hoping for. You would need to cancel through your Booking.com account directly, and the refund outcome will be based on the standard policy for your timing.',
+          'Hi [guest name], thank you for getting in touch so quickly. I can see the booking was just made, and I understand why you\'d expect to be covered. I do need to be upfront, the 48-hour grace period under Booking.com\'s policy only applies when check-in is at least 7 days away. Because your check-in is within that window, the standard Booking.com cancellation policy applies. I\'m sorry, I know that\'s not the news you were hoping for. You would need to cancel through your Booking.com account directly, and the refund outcome will be based on the standard policy for your timing.',
           [
-            {guest:'I only just made this booking — why doesn\'t the grace period apply?', agent:'I completely understand why that feels unfair, and I\'m genuinely sorry. The grace period under Booking.com\'s policy is specifically tied to check-in being more than 7 days away. Because you\'re inside that window, the standard policy applies regardless of when the booking was made. I wish there was more I could do.'},
-            {guest:'Can you action the cancellation from your side?', agent:'For Booking.com bookings, refunds are triggered through the Booking.com platform — we\'re not able to override their policy from our end. When you cancel through your Booking.com account it will confirm the refund amount before you finalise, so I\'d recommend checking that first.'},
-            {guest:'What refund will I get?', agent:'The refund depends on Booking.com\'s standard cancellation policy for your specific booking. When you initiate the cancellation in your account, Booking.com will show you the exact refund amount before you confirm — please check that before proceeding so you know what to expect.'},
+            {guest:'I only just made this booking, why doesn\'t the grace period apply?', agent:'I completely understand why that feels unfair, and I\'m genuinely sorry. The grace period under Booking.com\'s policy is specifically tied to check-in being more than 7 days away. Because you\'re inside that window, the standard policy applies regardless of when the booking was made. I wish there was more I could do.'},
+            {guest:'Can you action the cancellation from your side?', agent:'For Booking.com bookings, refunds are triggered through the Booking.com platform, we\'re not able to override their policy from our end. When you cancel through your Booking.com account it will confirm the refund amount before you finalise, so I\'d recommend checking that first.'},
+            {guest:'What refund will I get?', agent:'The refund depends on Booking.com\'s standard cancellation policy for your specific booking. When you initiate the cancellation in your account, Booking.com will show you the exact refund amount before you confirm, please check that before proceeding so you know what to expect.'},
             q_travelInsurance,
             q_proofOfCancel,
             q_tragic,
@@ -1708,7 +1734,7 @@ function calculate() {
           ]
         ),
         breakdownItems:[
-          {text:'48-hour grace period does not apply — check-in less than 7 days away', type:'norefund'},
+          {text:'48-hour grace period does not apply, check-in less than 7 days away', type:'norefund'},
           {text:'Standard Booking.com cancellation policy applies', type:'action'},
           {text:'Guest must cancel through Booking.com portal', type:'action'}
         ],
@@ -1716,7 +1742,7 @@ function calculate() {
         nextsteps:[
           'Explain clearly why the grace period does not apply in this scenario.',
           'Advise the guest to check the refund amount in their Booking.com account before confirming.',
-          'Do not advise a specific refund figure — direct them to the portal for confirmation.',
+          'Do not advise a specific refund figure, direct them to the portal for confirmation.',
           'Record notes on the outcome and what was explained.'
         ]
       });
@@ -1724,14 +1750,14 @@ function calculate() {
     }
 
     if (within48==='yes' && diff>=7) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
         result:'Full Refund Applies', tone:'success',
         simple:'Booking cancelled within 48 hours of creation and at least 7 days before check-in. Full refund under Booking.com policy. Guest must cancel through their Booking.com portal.',
         script: buildScript(
-          'Hi [guest name], good news — you\'re eligible for a full refund. Because the booking was made within the last 48 hours and your check-in is at least 7 days away, a full refund applies under the Booking.com policy. You\'ll need to action the cancellation directly through your Booking.com account to trigger the refund — it\'s processed through their system. Once you\'ve done that, Booking.com will confirm the refund. Do you need any help finding the cancellation option in your account?',
+          'Hi [guest name], good news, you\'re eligible for a full refund. Because the booking was made within the last 48 hours and your check-in is at least 7 days away, a full refund applies under the Booking.com policy. You\'ll need to action the cancellation directly through your Booking.com account to trigger the refund, it\'s processed through their system. Once you\'ve done that, Booking.com will confirm the refund. Do you need any help finding the cancellation option in your account?',
           [
-            {guest:'Can you cancel it for me?', agent:'For Booking.com bookings, the refund is only triggered when you cancel through the Booking.com platform directly — we\'re not able to initiate refunds through their system from our side. It\'s straightforward to do through your account though.'},
+            {guest:'Can you cancel it for me?', agent:'For Booking.com bookings, the refund is only triggered when you cancel through the Booking.com platform directly, we\'re not able to initiate refunds through their system from our side. It\'s straightforward to do through your account though.'},
             {guest:'How do I cancel in Booking.com?', agent:'Log in to your Booking.com account, go to your bookings, find this reservation, and select the cancel option. Booking.com will confirm the refund before you finalise the cancellation.'},
             q_howLong,
             q_proofOfCancel,
@@ -1753,16 +1779,16 @@ function calculate() {
     }
 
     if (diff>7) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
         result:'Full Refund Applies', tone:'success',
-        simple:'More than 7 days before check-in — full refund under Booking.com policy. Guest must cancel through their Booking.com portal.',
+        simple:'More than 7 days before check-in, full refund under Booking.com policy. Guest must cancel through their Booking.com portal.',
         script: buildScript(
           'Hi [guest name], I can confirm a full refund applies here. As your check-in is more than 7 days away, you\'re within the full-refund window under the current Booking.com policy. The refund is processed through Booking.com\'s system, so you\'ll need to cancel the booking directly through your Booking.com account to get it initiated. Once you do that, they\'ll confirm the refund on their end. Is there anything else I can help with?',
           [
             {guest:'Can you cancel it from your end?', agent:'For Booking.com bookings, the refund is only triggered when you cancel through the Booking.com platform. We\'re not able to action refunds through their system from our side.'},
             {guest:'How do I cancel in Booking.com?', agent:'Log in to your Booking.com account, navigate to your bookings, select this one, and you\'ll see the cancel option there. It\'s quite straightforward and Booking.com will confirm the refund amount before you proceed.'},
-            {guest:'Can I change dates instead?', agent:'That\'s something we can look into from our end. Let me check availability for your preferred new dates and we can arrange it from here — it may well be a better outcome than cancelling. What dates were you thinking?'},
+            {guest:'Can I change dates instead?', agent:'That\'s something we can look into from our end. Let me check availability for your preferred new dates and we can arrange it from here, it may well be a better outcome than cancelling. What dates were you thinking?'},
             q_howLong,
             q_proofOfCancel,
             q_travelInsurance
@@ -1782,19 +1808,19 @@ function calculate() {
       return;
     }
 
-    // Booking.com — 7 days or less
-    setOutputs({
+    // Booking.com, 7 days or less
+    return ({
       daysText, confidence:'Standard outcome', confidenceClass:'safe',
       result:'No Full Refund Applies', tone:'danger',
-      simple:'7 days or fewer before check-in — no full refund under the current Booking.com policy.',
+      simple:'7 days or fewer before check-in, no full refund under the current Booking.com policy.',
       script: buildScript(
-        'Hi [guest name], thank you for getting in touch. I want to be upfront with you — as your check-in is 7 days or fewer away, a full refund is not available under the current Booking.com cancellation policy. I\'m sorry that\'s the situation. I know that\'s not what you were hoping to hear. Can I ask a little more about your situation? If there are exceptional circumstances involved, there may be things we can still look at.',
+        'Hi [guest name], thank you for getting in touch. I want to be upfront with you, as your check-in is 7 days or fewer away, a full refund is not available under the current Booking.com cancellation policy. I\'m sorry that\'s the situation. I know that\'s not what you were hoping to hear. Can I ask a little more about your situation? If there are exceptional circumstances involved, there may be things we can still look at.',
         [
-          {guest:'Can you override it?', agent:'I\'m not able to override the Booking.com platform policy — it applies to all bookings under this cancellation type. What I can do is contact the property owner on your behalf if there are exceptional circumstances involved, to see if they\'re willing to offer anything outside of the policy.'},
+          {guest:'Can you override it?', agent:'I\'m not able to override the Booking.com platform policy, it applies to all bookings under this cancellation type. What I can do is contact the property owner on your behalf if there are exceptional circumstances involved, to see if they\'re willing to offer anything outside of the policy.'},
           {guest:'Why am I not getting a full refund?', agent:'The Booking.com policy for this booking type stops allowing a full refund once you\'re within 7 days of check-in. It\'s a platform rule based on the timing of the cancellation.'},
-          {guest:'What will I actually get back?', agent:'Under the current policy, a full refund isn\'t available at this stage. The exact outcome can depend on the specific rate type of your booking — it\'s worth also checking directly in your Booking.com account as they may show your specific cancellation terms.'},
-          {guest:'Is there anything at all you can do?', agent:'The main option at this stage is for me to contact the property owner and explain your situation — they do have the ability to offer discretion outside of the policy if they choose to. I\'m happy to make that call on your behalf. Would you like me to try?'},
-          {guest:'What about Booking.com\'s own support?', agent:'Booking.com does have their own customer support team who may be able to assist further, particularly if there are extenuating circumstances. It\'s worth reaching out to them directly through your booking portal as well — that runs parallel to what we can do from our end.'},
+          {guest:'What will I actually get back?', agent:'Under the current policy, a full refund isn\'t available at this stage. The exact outcome can depend on the specific rate type of your booking, it\'s worth also checking directly in your Booking.com account as they may show your specific cancellation terms.'},
+          {guest:'Is there anything at all you can do?', agent:'It depends on the circumstances, and I\'d rather be straight with you. If there is a genuine emergency or a serious personal or health situation involved, I can contact the property owner on your behalf and ask whether they are willing to offer something outside the policy, I am very happy to make that call for you. If it is a change of plans, though, that isn\'t something we would take to the owner, because it wouldn\'t be fair to them. Either way, I want to make sure you know exactly where you stand. Can I ask what has brought this on?'},
+          {guest:'What about Booking.com\'s own support?', agent:'Booking.com does have their own customer support team who may be able to assist further, particularly if there are extenuating circumstances. It\'s worth reaching out to them directly through your booking portal as well, that runs parallel to what we can do from our end.'},
           q_travelInsurance,
           q_proofOfCancel,
           q_ownerApproval,
@@ -1820,16 +1846,20 @@ function calculate() {
   if (platform === 'vrbo') {
 
     if (within48==='yes' && diff<14) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
-        result:'No Grace Period — Policy Applies', tone:'danger',
+        result:'No Grace Period, Policy Applies', tone:'danger',
         simple:'Booked within 48 hours but check-in is less than 14 days away. The 48-hour grace period does not apply. VRBO cancellation policy applies as standard.',
         script: buildScript(
-          'Hi [guest name], thank you for getting in touch so quickly. I can see this booking was just made, and I completely understand the expectation of a full refund. I do need to be upfront — the 48-hour grace period under the VRBO policy only applies when check-in is at least 14 days away. Because your check-in is within that window, the standard VRBO cancellation policy applies. I\'m really sorry — I wish I had better news. For VRBO bookings, we action the cancellation on our end, but the refund outcome will be based on the standard policy for your check-in timing.',
+          'Hi [guest name], thank you for getting in touch so quickly. I can see this booking was just made, and I completely understand the expectation of a full refund. I do need to be upfront, the 48-hour grace period under the VRBO policy only applies when check-in is at least 14 days away. Because your check-in is within that window, the standard VRBO cancellation policy applies. I\'m really sorry, I wish I had better news. For VRBO bookings, we action the cancellation on our end, but the refund outcome will be based on the standard policy for your check-in timing.',
           [
-            {guest:'That doesn\'t seem right — I literally just booked this.', agent:'I understand completely, and I\'m genuinely sorry. The grace period is a VRBO platform rule that requires check-in to be more than 14 days away. Because you\'re within that window, the standard policy applies regardless of when the booking was made. I know that\'s really frustrating.'},
-            {guest:'What will I get back?', agent:'The refund will be based on the standard VRBO cancellation policy for your check-in timing. I can confirm what that looks like for your specific booking — let me check that now so you have a clear picture before we proceed.'},
-            {guest:'Can you make an exception?', agent:'I\'m not able to override the VRBO platform policy from our end, and I wouldn\'t want to give you false hope. What I can do is make sure you have all the information you need to make the right decision, and if there are any exceptional circumstances involved I\'m happy to note those for the record.'},
+            {guest:'That doesn\'t seem right, I literally just booked this.', agent:'I understand completely, and I\'m genuinely sorry. The grace period is a VRBO platform rule that requires check-in to be more than 14 days away. Because you\'re within that window, the standard policy applies regardless of when the booking was made. I know that\'s really frustrating.'},
+            {guest:'What will I get back?', agent:'The refund will be based on the standard VRBO cancellation policy for your check-in timing. I can confirm what that looks like for your specific booking, let me check that now so you have a clear picture before we proceed.'},
+            // Rewritten: the toolbox version only offered to "note it for the
+            // record", while every other platform's equivalent offers to ring
+            // the owner. Brought in line with the rest, and with the standard
+            // of actually advocating for the guest rather than filing them.
+            {guest:'Can you make an exception?', agent:'I\'m not able to override the VRBO platform policy from our end, and I don\'t want to give you false hope. What I can do, if there are genuinely exceptional circumstances involved, is contact the property owner directly on your behalf and ask whether they\'re willing to consider discretion outside the policy. That\'s entirely their decision and I can\'t guarantee the outcome, but I\'m absolutely happy to make that call for you. Would you like me to do that?'},
             q_travelInsurance,
             q_proofOfCancel,
             q_tragic,
@@ -1837,9 +1867,9 @@ function calculate() {
           ]
         ),
         breakdownItems:[
-          {text:'48-hour grace period does not apply — check-in less than 14 days away', type:'norefund'},
+          {text:'48-hour grace period does not apply, check-in less than 14 days away', type:'norefund'},
           {text:'Standard VRBO cancellation policy applies', type:'action'},
-          {text:'Bachcare actions the cancellation — guest does not need to cancel in VRBO', type:'action'}
+          {text:'Bachcare actions the cancellation, guest does not need to cancel in VRBO', type:'action'}
         ],
         copy:'VRBO booking within 48 hours of creation but check-in less than 14 days away. Grace period does not apply. Standard VRBO policy applies. Bachcare actions the cancellation.',
         nextsteps:[
@@ -1853,15 +1883,15 @@ function calculate() {
     }
 
     if (within48==='yes' && diff>=14) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
         result:'Full Refund Applies', tone:'success',
         simple:'Booking cancelled within 48 hours of creation and at least 14 days before check-in. Full refund under VRBO policy. Bachcare actions the cancellation.',
         script: buildScript(
-          'Hi [guest name], great news — a full refund applies here. Because this booking was made within the last 48 hours and check-in is at least 14 days away, you\'re eligible for a full refund under the VRBO policy. For VRBO bookings, we action the cancellation on our end — you don\'t need to do anything through the VRBO portal yourself. I\'ll get that sorted for you now. Would you like to go ahead?',
+          'Hi [guest name], great news, a full refund applies here. Because this booking was made within the last 48 hours and check-in is at least 14 days away, you\'re eligible for a full refund under the VRBO policy. For VRBO bookings, we action the cancellation on our end, you don\'t need to do anything through the VRBO portal yourself. I\'ll get that sorted for you now. Would you like to go ahead?',
           [
-            {guest:'Do I need to cancel it myself?', agent:'No — for VRBO bookings, we action the cancellation on our end. You don\'t need to do anything through the VRBO portal. I\'ll take care of it from here.'},
-            {guest:'Will the full amount come back?', agent:'Yes — a full refund applies in this scenario. Once we\'ve actioned the cancellation on our side, the refund will be processed and you can expect to see it within 5 to 10 business days depending on your payment method.'},
+            {guest:'Do I need to cancel it myself?', agent:'No, for VRBO bookings, we action the cancellation on our end. You don\'t need to do anything through the VRBO portal. I\'ll take care of it from here.'},
+            {guest:'Will the full amount come back?', agent:'Yes, a full refund applies in this scenario. Once we\'ve actioned the cancellation on our side, the refund will be processed and you can expect to see it within 5 to 10 business days depending on your payment method.'},
             q_howLong,
             q_proofOfCancel,
             q_travelInsurance
@@ -1869,12 +1899,12 @@ function calculate() {
         ),
         breakdownItems:[
           {text:'Full refund', type:'refund'},
-          {text:'Cancellation actioned by Bachcare — guest does not need to cancel in VRBO', type:'action'}
+          {text:'Cancellation actioned by Bachcare, guest does not need to cancel in VRBO', type:'action'}
         ],
         copy:'VRBO cancellation within 48 hours of booking creation, at least 14 days before check-in. Full refund. Bachcare actions the cancellation.',
         nextsteps:[
           'Confirm the guest wants to proceed with cancellation.',
-          'Action the cancellation on your side — the guest does not need to cancel in the VRBO portal.',
+          'Action the cancellation on your side, the guest does not need to cancel in the VRBO portal.',
           'Confirm the full refund outcome to the guest.',
           'Send a cancellation confirmation.',
           'Add notes confirming your team actioned the cancellation and the policy outcome.'
@@ -1884,15 +1914,15 @@ function calculate() {
     }
 
     if (diff>30) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
         result:'Full Refund Applies', tone:'success',
-        simple:'More than 30 days before check-in — full refund under VRBO policy. Bachcare actions the cancellation.',
+        simple:'More than 30 days before check-in, full refund under VRBO policy. Bachcare actions the cancellation.',
         script: buildScript(
-          'Hi [guest name], I can confirm a full refund applies. As your check-in is more than 30 days away, you\'re within the full-refund window under the VRBO policy. For VRBO bookings, we handle the cancellation on our end — you don\'t need to action anything through the VRBO portal yourself. I can get that moving for you now. Shall I go ahead?',
+          'Hi [guest name], I can confirm a full refund applies. As your check-in is more than 30 days away, you\'re within the full-refund window under the VRBO policy. For VRBO bookings, we handle the cancellation on our end, you don\'t need to action anything through the VRBO portal yourself. I can get that moving for you now. Shall I go ahead?',
           [
-            {guest:'Do I need to do anything in the VRBO app?', agent:'No — for VRBO bookings we action the cancellation from our side. You don\'t need to do anything in the VRBO portal. I\'ll handle it from here.'},
-            {guest:'What if I want to look at changing dates instead?', agent:'If you\'d prefer to look at alternative dates, that\'s absolutely fine — a date change at this stage shouldn\'t carry any financial penalty. Just let me know what dates you have in mind and I\'ll check availability.'},
+            {guest:'Do I need to do anything in the VRBO app?', agent:'No, for VRBO bookings we action the cancellation from our side. You don\'t need to do anything in the VRBO portal. I\'ll handle it from here.'},
+            {guest:'What if I want to look at changing dates instead?', agent:'If you\'d prefer to look at alternative dates, that\'s absolutely fine, a date change at this stage shouldn\'t carry any financial penalty. Just let me know what dates you have in mind and I\'ll check availability.'},
             q_howLong,
             q_proofOfCancel,
             q_travelInsurance
@@ -1900,7 +1930,7 @@ function calculate() {
         ),
         breakdownItems:[
           {text:'100% refund', type:'refund'},
-          {text:'Cancellation actioned by Bachcare — guest does not need to cancel in VRBO', type:'action'}
+          {text:'Cancellation actioned by Bachcare, guest does not need to cancel in VRBO', type:'action'}
         ],
         copy:'VRBO booking more than 30 days before check-in. Full refund. Bachcare actions the cancellation.',
         nextsteps:[
@@ -1914,17 +1944,21 @@ function calculate() {
     }
 
     if (diff>=14) {
-      setOutputs({
+      return ({
         daysText, confidence:'Standard outcome', confidenceClass:'safe',
         result:'50% Refund Applies', tone:'warn',
-        simple:'Between 14 and 30 days before check-in — 50% refund under VRBO policy. Bachcare actions the cancellation.',
+        simple:'Between 14 and 30 days before check-in, 50% refund under VRBO policy. Bachcare actions the cancellation.',
         script: buildScript(
-          'Hi [guest name], thank you for getting in touch. I want to be upfront about the refund position before you make a decision. As your check-in is between 14 and 30 days away, a 50% refund applies under the VRBO cancellation policy. I know that\'s not a full refund, and I\'m sorry. For VRBO bookings, we handle the cancellation from our end — you won\'t need to action anything in the VRBO portal. Before we proceed, would it help to explore any alternatives like a date change?',
+          'Hi [guest name], thank you for getting in touch. I want to be upfront about the refund position before you make a decision. As your check-in is between 14 and 30 days away, a 50% refund applies under the VRBO cancellation policy. I know that\'s not a full refund, and I\'m sorry. For VRBO bookings, we handle the cancellation from our end, you won\'t need to action anything in the VRBO portal. Before we proceed, would it help to explore any alternatives like a date change?',
           [
             {guest:'Why only 50%?', agent:'Under the VRBO policy, once you\'re inside the 30-day window before check-in, the full refund window closes and the policy moves to a 50% refund. It\'s based on the timing of the cancellation.'},
-            {guest:'Who cancels the booking?', agent:'For VRBO bookings, we action the cancellation on our end — you don\'t need to do anything through the VRBO portal yourself.'},
-            {guest:'Can I change the dates instead?', agent:'Unfortunately at this stage we\'re not able to offer a date change for this booking — the policy applies as it stands. I\'m sorry I can\'t offer more here. If you\'d like to go ahead with the cancellation we can process that now.'},
-            {guest:'Can the owner agree to refund more?', agent:'That\'s possible — the owner does have discretion to go outside of the standard policy if they choose to. I\'m happy to contact them on your behalf and explain the situation, though I can\'t guarantee any particular outcome.'},
+            {guest:'Who cancels the booking?', agent:'For VRBO bookings, we action the cancellation on our end, you don\'t need to do anything through the VRBO portal yourself.'},
+            // Rewritten from the toolbox original, which flatly refused a date
+            // change and pushed the guest to cancel, contradicting this very
+            // script's opener ("would it help to explore any alternatives like
+            // a date change?"). Teina's standard: support first, offer options.
+            {guest:'Can I change the dates instead?', agent:'That\'s definitely worth exploring before you make any decision, it may well be a better outcome for you than a 50% refund. Let me check what\'s available around the dates you have in mind. If anything sits outside the standard policy I\'ll need to confirm it with the property owner first, but I\'m very happy to look into it. What dates were you thinking?'},
+            {guest:'Can the owner agree to refund more?', agent:'They can, the owner does have discretion to go outside the standard policy. I want to be upfront about when we would ask them, though. If this is a genuine emergency or a serious personal or health matter, I will happily contact the owner on your behalf and put your situation to them. If it is more that the dates no longer suit, that isn\'t something we would escalate, because it wouldn\'t be fair to the owner who has been holding those dates. Can I ask what has changed?'},
             q_travelInsurance,
             q_proofOfCancel,
             q_notMyFault,
@@ -1934,7 +1968,7 @@ function calculate() {
         ),
         breakdownItems:[
           {text:'50% refund', type:'conditional'},
-          {text:'Cancellation actioned by Bachcare — guest does not need to cancel in VRBO', type:'action'}
+          {text:'Cancellation actioned by Bachcare, guest does not need to cancel in VRBO', type:'action'}
         ],
         copy:'VRBO booking between 14 and 29 days before check-in. 50% refund. Bachcare actions the cancellation.',
         nextsteps:[
@@ -1949,19 +1983,19 @@ function calculate() {
       return;
     }
 
-    // VRBO — less than 14 days
-    setOutputs({
+    // VRBO, less than 14 days
+    return ({
       daysText, confidence:'Standard outcome', confidenceClass:'safe',
       result:'No Refund Applies', tone:'danger',
-      simple:'Less than 14 days before check-in — no refund available under VRBO policy.',
+      simple:'Less than 14 days before check-in, no refund available under VRBO policy.',
       script: buildScript(
-        'Hi [guest name], thank you for calling. I have to be honest with you — as your check-in is less than 14 days away, a refund is not available under the VRBO cancellation policy at this stage. I\'m really sorry. I completely understand how difficult that is to hear. Can I ask a bit more about why you\'re needing to cancel? There may still be things we can look at, and I want to make sure we\'ve explored every option before we leave it there.',
+        'Hi [guest name], thank you for calling. I have to be honest with you, as your check-in is less than 14 days away, a refund is not available under the VRBO cancellation policy at this stage. I\'m really sorry. I completely understand how difficult that is to hear. Can I ask a bit more about why you\'re needing to cancel? There may still be things we can look at, and I want to make sure we\'ve explored every option before we leave it there.',
         [
-          {guest:'Can you make an exception?', agent:'The VRBO policy at this stage doesn\'t allow for a refund, and I\'m not able to override that from our end. However, if there are genuinely exceptional circumstances, I can contact the property owner directly and explain the situation — they have the ability to offer discretion if they choose to. I\'m happy to make that call on your behalf. Would you like me to try?'},
+          {guest:'Can you make an exception?', agent:'The VRBO policy at this stage doesn\'t allow for a refund, and I\'m not able to override that from our end. However, if there are genuinely exceptional circumstances, I can contact the property owner directly and explain the situation, they have the ability to offer discretion if they choose to. I\'m happy to make that call on your behalf. Would you like me to try?'},
           {guest:'Why am I not getting anything back?', agent:'The no-refund window under the VRBO policy applies when check-in is less than 14 days away. It\'s based on the timing of the cancellation rather than the reason for it.'},
-          {guest:'Who actions the cancellation?', agent:'For VRBO bookings, we action the cancellation on our end — you don\'t need to do anything through the VRBO portal. But I\'d encourage you to fully consider the financial impact before confirming, given there\'s no refund available.'},
-          {guest:'What if I just don\'t show up?', agent:'I\'d strongly advise against that. A no-show doesn\'t change the financial outcome — you\'d still lose the same amount — but it can also impact your account standing and future bookings. Formally cancelling is the better option.'},
-          {guest:'Does VRBO have its own refund process I can apply through?', agent:'VRBO does have a guest support team, and in cases involving documented extenuating circumstances they may be able to assess things separately from the standard policy. It\'s worth reaching out to them directly through the VRBO platform as well — it runs in parallel to what we can do from our end.'},
+          {guest:'Who actions the cancellation?', agent:'For VRBO bookings, we action the cancellation on our end, you don\'t need to do anything through the VRBO portal. But I\'d encourage you to fully consider the financial impact before confirming, given there\'s no refund available.'},
+          {guest:'What if I just don\'t show up?', agent:'I\'d strongly advise against that. A no-show doesn\'t change the financial outcome, you\'d still lose the same amount, but it can also impact your account standing and future bookings. Formally cancelling is the better option.'},
+          {guest:'Does VRBO have its own refund process I can apply through?', agent:'VRBO does have a guest support team, and in cases involving documented extenuating circumstances they may be able to assess things separately from the standard policy. It\'s worth reaching out to them directly through the VRBO platform as well, it runs in parallel to what we can do from our end.'},
           q_travelInsurance,
           q_proofOfCancel,
           q_ownerApproval,
@@ -1981,6 +2015,23 @@ function calculate() {
       ]
     });
   }
+  // Every platform branch returns above. Reaching here means the form was
+  // not complete enough to decide anything.
+  return null;
+}
+
+function calculate() {
+  const data = cancAssess({
+    platform: getPlatform(),
+    whoCancelling: getWhoCancelling(),
+    within48: getWithin48(),
+    checkIn: parseLocalDate(document.getElementById('checkIn').value)
+  });
+  if (!data) {
+    alert('Please enter a valid booking start date.');
+    return;
+  }
+  setOutputs(data);
 }
 
 function copyResult() {
@@ -2424,7 +2475,7 @@ function triggerTutorial() {
         var snap = {};
         var plat = document.querySelector('input[name="platform"]:checked');
         snap.platform    = plat ? plat.value : null;
-        snap.bachcareType= document.getElementById('bachcareType').value;
+        snap.whoCancelling = getWhoCancelling();
         var w48 = document.querySelector('input[name="within48"]:checked');
         snap.within48    = w48 ? w48.value : 'no';
         snap.checkIn     = document.getElementById('checkIn').value;
@@ -2435,6 +2486,7 @@ function triggerTutorial() {
 
       // ── Always preset: Bachcare + today ──
       var bachcareRadio = document.getElementById('p_bachcare');
+      var whoGuest = document.getElementById('who_guest'); if (whoGuest) whoGuest.checked = true;
       if (bachcareRadio) { bachcareRadio.checked = true; if (typeof toggleFields === 'function') toggleFields(); }
       var today = new Date();
       var yyyy = today.getFullYear(), mm = String(today.getMonth()+1).padStart(2,'0'), dd = String(today.getDate()).padStart(2,'0');
@@ -4444,7 +4496,7 @@ body.tut-active hr, body.tut-active .divider { visibility: hidden; }
         // Full wipe — return to fresh state
         document.querySelectorAll('input[name="platform"]').forEach(function(r){ r.checked = false; });
         document.getElementById('checkIn').value = '';
-        document.getElementById('bachcareType').value = 'customer';
+        var whoG = document.getElementById('who_guest'); if (whoG) whoG.checked = true;
         var w48no = document.getElementById('w48_no'); if (w48no) w48no.checked = true;
         document.getElementById('resultContent').classList.remove('active');
         document.getElementById('resultEmpty').style.display = '';
@@ -4453,7 +4505,7 @@ body.tut-active hr, body.tut-active .divider { visibility: hidden; }
       } else {
         // Restore previous selections
         document.querySelectorAll('input[name="platform"]').forEach(function(r){ r.checked = (r.value === snap.platform); });
-        document.getElementById('bachcareType').value = snap.bachcareType;
+        document.querySelectorAll('input[name="whoCancelling"]').forEach(function(r){ r.checked = (r.value === (snap.whoCancelling || 'guest')); });
         document.querySelectorAll('input[name="within48"]').forEach(function(r){ r.checked = (r.value === snap.within48); });
         document.getElementById('checkIn').value = snap.checkIn;
         if (typeof toggleFields === 'function') toggleFields();
@@ -4495,8 +4547,8 @@ body.tut-active hr, body.tut-active .divider { visibility: hidden; }
       body: "This tool takes the guesswork out of cancellation calls. Select the platform, enter a few details, and it instantly tells you the correct refund outcome based on policy — along with a ready-to-use call script, a refund breakdown, and step-by-step guidance for the call. No more policy lookups, no more second-guessing. Everything you need is right here." },
     { sel: '#canc_platformGrid', title: 'Select the Platform', useField: false,
       body: "Choose the platform the booking was made on — Bachcare Direct, Airbnb, Booking.com, or VRBO. Each platform has its own cancellation policy and refund rules, so this is the most important step to get right." },
-    { sel: '#bachcareTypeWrap', title: 'Cancellation Type', useField: false,
-      body: "For Bachcare Direct bookings, select whether this is a customer cancellation or an owner cancellation due to an unexpected event. This only appears for Bachcare Direct — OTA platforms are always customer-initiated." },
+    { sel: '#whoCancellingWrap', title: 'Who Is Cancelling?', useField: false,
+      body: "Choose whether the guest or the owner is cancelling. An owner cancellation follows the same rehouse-first policy on every platform and does not depend on dates, so the timing questions disappear when you pick The owner." },
     { sel: '#within48Wrap', title: 'Within 48 Hours?', useField: false,
       body: "Was the booking made within the last 48 hours? All platforms offer a grace period that can change the refund outcome significantly. Toggle Yes if the booking was created within 48 hours — the tool adjusts the result automatically." },
     { sel: '#checkIn', title: 'Check-in Date', useField: false,
@@ -5749,8 +5801,8 @@ function cancReset(){
   document.getElementById('cancReset_confirm').style.display='none';
   // Reset platform — uncheck all, recheck bachcare
   document.querySelectorAll('input[name="platform"]').forEach(function(r){ r.checked = r.value==='bachcare'; });
-  // Reset cancellation type dropdown
-  var bt = document.getElementById('bachcareType'); if(bt) bt.value='customer';
+  // Reset who is cancelling to the guest
+  var whoR = document.getElementById('who_guest'); if(whoR) whoR.checked=true;
   // Reset within 48hrs — check No
   var w48no = document.getElementById('w48_no'); if(w48no) w48no.checked=true;
   var w48yes = document.getElementById('w48_yes'); if(w48yes) w48yes.checked=false;
