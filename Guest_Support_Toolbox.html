@@ -32,6 +32,9 @@
 </script>
 <style>
   html.embedded .header, html.embedded .tool-nav { display: none !important; }
+  /* The hub has its own Note Builder (a Notes tab on the window's edge), so
+     the toolbox's corner button and panel are hidden when embedded. */
+  html.embedded #nb_fab, html.embedded #nb_panel { display: none !important; }
   /* The tool's banner stays pinned while the tool scrolls beneath it. Below the
      pop-ups (60), the note builder (900) and the tutorial (9000+). */
   html.embedded .tool-panel > div:first-child { position: sticky; top: 0; z-index: 50; }
