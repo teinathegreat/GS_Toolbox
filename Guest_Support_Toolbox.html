@@ -3679,9 +3679,23 @@ function qcPlatformRadioChanged() {
     var _adjBad = !!((os&&oe&&oe.getTime()<=os.getTime()) || (ns&&ne&&ne.getTime()<=ns.getTime()));
     var _adjWarn = elA('adj_dateWarn');
     if(_adjWarn) _adjWarn.classList.toggle('hidden', !_adjBad);
-    const ov=adjOverlaps(os,oe,ns,ne);
-    if(ov&&newN>origN) return{key:'extension',label:'Extension',gstWaived:false};
-    if(ov&&newN<origN) return{key:'ron',label:'Reduction of Nights',gstWaived:false};
+    // An extension keeps the stay they already have and adds nights to it, so
+    // one end stays put: same check-in and a later check-out, same check-out
+    // and an earlier check-in, or nights added at both ends, which the nightly
+    // grid already prices by skipping the ones already paid for.
+    //
+    // Anything else is a change of date, even when the two stays share nights.
+    // A booking moved from 27 Dec - 5 Jan to 29 Dec - 15 Jan overlaps and is
+    // longer, and used to come out as an extension: it charged the added
+    // nights and quietly kept the 27th and 28th, which the guest is no longer
+    // having. Both ends moved, so it is a different stay, not a longer one.
+    const keepsTheStay = !!(os&&oe&&ns&&ne) && ns<=os && ne>=oe;
+    const insideTheStay = !!(os&&oe&&ns&&ne) && ns>=os && ne<=oe;
+    if(keepsTheStay&&newN>origN) return{key:'extension',label:'Extension',gstWaived:false};
+    // The mirror of it: a reduction gives nights back off the stay they have,
+    // so the shorter stay sits inside the original. That is what lets the rent
+    // be worked out from the original's own nightly rate.
+    if(insideTheStay&&newN<origN) return{key:'ron',label:'Reduction of Nights',gstWaived:false};
     return{key:'change',label:'Change of Date',gstWaived:false};
   }
 
