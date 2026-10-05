@@ -3622,7 +3622,15 @@ function qcPlatformRadioChanged() {
   const adjIso = d => d.toISOString().slice(0,10);
   function adjDtNZ(d){ if(!(d instanceof Date)||isNaN(d)) return ''; const dd=String(d.getUTCDate()).padStart(2,'0'),mm=String(d.getUTCMonth()+1).padStart(2,'0'),yy=d.getUTCFullYear(); return `${dd}/${mm}/${yy}`; }
   const adjNights = (a,b) => Math.max(0,Math.round((b-a)/ADJ_DAY));
-  const adjOverlaps = (a1,a2,b1,b2) => a1&&a2&&b1&&b2&&(a1<=b2)&&(b1<=a2);
+  // Two stays overlap when they share at least one NIGHT. A stay runs from
+  // check-in up to, but not including, check-out, so a booking that starts on
+  // the day the last one ends shares nothing with it.
+  //
+  // This used to compare the dates inclusively, which made the two touch, and
+  // a guest moving to the nights straight after their stay was read as an
+  // extension of it: the new nights were charged ON TOP of the original
+  // instead of in place of it, and no refund was ever offered.
+  const adjOverlaps = (a1,a2,b1,b2) => a1&&a2&&b1&&b2&&(a1<b2)&&(b1<a2);
   const FEE_CAP_C=29900; // GEL is selected manually per property
   let adjLastNightlyKey='',adjLastDirectKey='',adjLastDirect30Key='',adjLastOtaExtKey='',adjLastOtaChangeKey='',adjLastOtaApprovalKey='';
 
