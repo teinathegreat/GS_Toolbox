@@ -2418,7 +2418,7 @@ toggleFields();
                 <div class="qc-summary-row"><span>Owner GST (15%)</span><span id="qc_gst">$131.40</span></div>
                 <div class="qc-summary-row"><span id="qc_gelLabel">GEL</span><span id="qc_gel">$0.00</span></div>
                 <div class="qc-summary-row"><span>Booking Fee (7.1%, cap $299/booking)</span><span id="qc_fee">$71.53</span></div>
-                <div class="qc-summary-row"><span>Platform markup</span><span id="qc_markup">$266.47</span></div>
+                <div class="qc-summary-row"><span id="qc_markupLabel">Platform markup</span><span id="qc_markup">$266.47</span></div>
                 <div class="qc-summary-row"><span>Linen total</span><span id="qc_linenTotal">$100.00</span></div>
                 <div class="qc-summary-row"><span>Cleaning total</span><span id="qc_cleanTotal">$156.00</span></div>
                 <div class="qc-summary-row hidden" id="qc_deepCleanRow"><span>Deep clean</span><span id="qc_deepCleanTotal">$0.00</span></div>
@@ -2983,6 +2983,17 @@ function qcPlatformRadioChanged() {
     const {discountC,rentUsedC,gstC,feeC,markupC,totalC}=qcPrice(rentBeforeC,priceCtx);
     $q('qc_rentBefore').textContent=qcNzd(rentBeforeC); $q('qc_discountValue').textContent=qcNzd(discountC); $q('qc_rentUsed').textContent=qcNzd(rentUsedC);
     $q('qc_gst').textContent=qcNzd(gstC); $q('qc_gel').textContent=qcNzd(gelC); $q('qc_fee').textContent=qcNzd(feeC); $q('qc_markup').textContent=qcNzd(markupC);
+    // Name the platform and its rate on the row, so a quote can be checked
+    // without anybody having to remember which channel charges what. Bachcare
+    // Direct says "no markup" rather than "0.0%", because nought per cent of
+    // something reads like a mistake.
+    const mkLbl=$q('qc_markupLabel');
+    if(mkLbl){
+      const pct=(p.markup||0)*100;
+      mkLbl.textContent = !p.label ? 'Platform markup'
+        : pct>0 ? `Platform markup (${p.label} ${(+pct.toFixed(1))}%)`
+        : `Platform markup (${p.label}, no markup)`;
+    }
     $q('qc_linenTotal').textContent=qcNzd(linenTotalC); $q('qc_cleanTotal').textContent=qcNzd(cleanTotalC);
     const addWrap=$q('qc_addChargesSummary'); addWrap.innerHTML='';
     if(additionalChargesItems&&additionalChargesItems.length){ additionalChargesItems.forEach((it,i)=>{ const line=document.createElement('div'); line.className='qc-summary-row'; line.innerHTML=`<span>${qcEscape(it.info||`Charge ${i+1}`)}</span><span>${qcNzd(it.amtC)}</span>`; addWrap.appendChild(line); }); const tl=document.createElement('div'); tl.className='qc-summary-row'; tl.style.fontWeight='600'; tl.innerHTML=`<span>Additional total</span><span>${qcNzd(additionalChargesTotalC)}</span>`; addWrap.appendChild(tl); }
