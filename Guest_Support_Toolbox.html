@@ -3434,11 +3434,16 @@ function qcPlatformRadioChanged() {
             <div class="qc-summary-row"><span style="color:var(--text-secondary);">Booking Fee</span><span id="nbFee">$0.00</span></div>
             <div class="qc-summary-row"><span style="color:var(--text-secondary);">Channel Markup</span><span id="nbMarkup">$0.00</span></div>
             <div class="qc-summary-row"><span id="nbAddLabel" style="color:var(--text-secondary);">Additional Charge</span><span id="nbAdd">$0.00</span></div>
-            <div class="qc-summary-row"><span style="color:var(--text-secondary);">Amendment Fee</span><span id="nbAmend">N/A</span></div>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--brand-light);border-radius:var(--radius-sm);margin-top:8px;font-size:13px;font-weight:700;">
             <span style="color:var(--brand);">New Total</span>
             <span id="total2" style="color:var(--brand);">$0.00</span>
+          </div>
+          <!-- The amendment fee is a charge for making the change, not part of
+               what the booking is worth, so it sits under the total and is
+               added to the amount collected. -->
+          <div class="qc-summary-row" style="padding:7px 12px 0;font-size:12.5px;">
+            <span style="color:var(--text-muted);">Amendment Fee, added to the amount charged</span><span id="nbAmend" style="color:var(--text-secondary);">N/A</span>
           </div>
         </div>
       </div>
@@ -3867,6 +3872,11 @@ function qcPlatformRadioChanged() {
     const markup1C=Math.round((b1.rent+ownerGST1C+b1.fee)*ch.markup);
     const markup2C=Math.round((b2.rent+ownerGST2C+b2.fee+gel2)*ch.markup);
     const amendTotalC=direct&&chargeAmendFee?amendFeeEachC:0;
+    // What the new booking itself is worth: every line listed above the total,
+    // linen and cleaning included, because they are shown there. The amendment
+    // fee is left out: it is charged for making the change, not bought, so it
+    // belongs with the amount collected rather than in the booking's value.
+    const newBookingC=b2.rent+ownerGST2C+b2.linen+b2.clean+b2.fee+b2.addAmt+gel2+markup2C;
     let total1; if(direct){total1=b1.rent+b1.linen+b1.clean+b1.fee+b1.addAmt+markup1C;}else{total1=adjToCents(elA('otaTotal1')?.value||0);}
     const total2Base=b2.rent+ownerGST2C+lc2ChargeC+b2.fee+b2.addAmt+gel2+markup2C+amendTotalC;
     const total2=isExt?(total1+total2Base):total2Base;
@@ -3887,8 +3897,12 @@ function qcPlatformRadioChanged() {
     elA('nbLinen').textContent=adjNzd(b2.linen); elA('nbClean').textContent=adjNzd(b2.clean); elA('nbFee').textContent=adjNzd(b2.fee); elA('nbAdd').textContent=adjNzd(b2.addAmt); elA('gelAuto2').textContent=adjNzd(gel2); elA('nbMarkup').textContent=adjNzd(markup2C); elA('ownerGST2').textContent=adjNzd(ownerGST2C);
     if(elA('nbRentDisplay')) elA('nbRentDisplay').textContent=adjNzd(b2.rent);
     elA('nbAmend').textContent=direct?(amendTotalC>0?adjNzd(amendTotalC):'Waived'):'N/A';
-    elA('total1').textContent=adjNzd(total1); elA('total2').textContent=adjNzd(total2);
-    elA('tile1').textContent=adjNzd(total1); elA('tile2').textContent=adjNzd(total2);
+    // The New Total is the new booking's own value. On an extension it is the
+    // extension period priced as its own booking, not that plus the original
+    // stay: "Updated Booking Total" in the finance note is the whole stay, and
+    // the tile beside it is what the guest actually pays to make the change.
+    elA('total1').textContent=adjNzd(total1); elA('total2').textContent=adjNzd(newBookingC);
+    elA('tile1').textContent=adjNzd(total1); elA('tile2').textContent=adjNzd(newBookingC);
     elA('tile3').textContent=adjNzd(Math.abs(diff));
     elA('tile3label').textContent=diff>=0?'Amount to charge guest':'Amount to refund guest';
     elA('tile3desc').textContent=diff>=0?'Collect this amount':'Refund this amount';
