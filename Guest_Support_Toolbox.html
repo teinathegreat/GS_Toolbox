@@ -829,49 +829,10 @@ input[type="date"].qc-select { position: relative; }
     <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 11-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z" clip-rule="evenodd"></path></svg>
     Eviction & Warning Guide
   </button>
-  <button class="tool-nav-btn" onclick="switchTool(&#39;updates&#39;, this)">
-    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>
-    What's New
-  </button>
   <button id="globalTutorialBtn" onclick="triggerTutorial()" style="margin-left: auto; display: flex; align-items: center; gap: 7px; padding: 8px 16px; background: rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.15s; white-space: nowrap;" onmouseover="this.style.background=&#39;rgba(255,255,255,0.2)&#39;" onmouseout="this.style.background=&#39;rgba(255,255,255,0.12)&#39;">
     <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
     How To Use This Tool
   </button>
-</div>
-
-<!-- ── WHAT'S NEW / UPDATES PANEL ──
-     A simple changelog, newest first. To log a new change, copy one
-     .upd-entry block, put it at the TOP of #upd-list, and set its date and text.
-     No em dashes or en dashes anywhere (hub rule 1): use "to", commas or arrows. -->
-<div class="tool-panel" id="tool-updates">
-  <div style="background:linear-gradient(135deg,#5b21b6,#4c1d95);border-radius:0;padding:20px 28px;margin-bottom:20px;color:#fff;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
-    <div>
-      <div style="font-size:17px;font-weight:800;margin-bottom:6px;letter-spacing:-0.02em;">✨ What's New</div>
-      <div style="font-size:13px;opacity:0.85;line-height:1.6;">Changes to these tools, newest first. Check here after an update to see what changed and when.</div>
-    </div>
-  </div>
-  <div style="max-width:820px;margin:28px auto;padding:0 20px 48px;">
-    <div id="upd-list" style="display:flex;flex-direction:column;gap:14px;">
-
-      <!-- upd-entry -->
-      <div class="upd-entry card" style="padding:0;overflow:hidden;">
-        <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--brand-light);">
-          <span style="font-size:12px;font-weight:800;color:#fff;background:var(--brand);border-radius:999px;padding:4px 12px;white-space:nowrap;">19 Oct 2026</span>
-          <span style="font-size:14px;font-weight:800;color:var(--text);">Platform markups updated</span>
-        </div>
-        <div style="padding:14px 18px;font-size:13px;line-height:1.65;color:var(--text);">
-          Finance set new Supercontrol markups to offset losses on the old rates. Applies to the Booking Quote Tool and the Date Change Calculator.
-          <ul style="margin:10px 0 0;padding-left:20px;">
-            <li>Airbnb: 25.5% to 28.0%</li>
-            <li>Booking.com: 23.9% to 25.0%</li>
-            <li>VRBO: 20.2% to 21.0%</li>
-          </ul>
-        </div>
-      </div>
-      <!-- /upd-entry -->
-
-    </div>
-  </div>
 </div>
 
 <!-- ── HOME PANEL ── -->
@@ -2147,6 +2108,18 @@ toggleFields();
     </div>
   </div>
 
+  <!-- updates-note: dated changes for THIS tool, newest first. To log a new
+       change, copy one <li> to the TOP of the list and set its date and text.
+       No em dashes or en dashes anywhere (hub rule 1): use "to", commas, parens. -->
+  <div style="max-width:1200px;margin:0 auto 16px;padding:0 20px;">
+    <div style="background:var(--brand-light,#f3effe);border:1px solid var(--brand,#7838E3);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--text);">
+      <div style="font-weight:800;color:var(--brand-dark,#3b0764);margin-bottom:6px;">✨ Recent updates</div>
+      <ul style="margin:0;padding-left:18px;line-height:1.65;">
+        <li><b>19 Oct 2026</b> &nbsp;Platform markups updated: Airbnb 25.5% to 28.0%, Booking.com 23.9% to 25.0%, VRBO 20.2% to 21.0%.</li>
+      </ul>
+    </div>
+  </div>
+
 <div class="page" style="max-width:1200px;">
     <!-- LEFT COLUMN: Inputs -->
     <div style="display:flex;flex-direction:column;gap:16px;">
@@ -3243,8 +3216,21 @@ function qcPlatformRadioChanged() {
 <div class="tool-panel active" id="tool-adjustment">
 <div style="background:linear-gradient(135deg,#5b21b6,#4c1d95);border-radius:0;padding:20px 28px;margin:0;color:#fff;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;"><div><div style="font-size:17px;font-weight:800;margin-bottom:6px;letter-spacing:-0.02em;">📅 Date Change Calculator</div><div style="font-size:13px;opacity:0.85;line-height:1.6;">Calculate the cost difference for extensions, reductions, change of dates or rehouses. Handles all scenarios automatically.</div></div><div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px;"><button onclick="adjResetShowConfirm()" style="padding:7px 16px;background:rgba(255,255,255,0.12);color:#fff;border:1.5px solid rgba(255,255,255,0.3);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">🔄 Reset</button><div id="adjReset_confirm" style="display:none;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);border-radius:var(--radius-sm);padding:8px 12px;text-align:right;"><div style="font-size:12px;color:#fff;margin-bottom:6px;">Clear everything?</div><div style="display:flex;gap:6px;justify-content:flex-end;"><button onclick="adjReset()" style="padding:5px 12px;background:#ef4444;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Yes, Reset</button><button onclick="document.getElementById('adjReset_confirm').style.display='none'" style="padding:5px 10px;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:4px;font-size:12px;cursor:pointer;font-family:inherit;">Cancel</button></div></div></div></div>
 
+  <!-- updates-note: dated changes for THIS tool, newest first. To log a new
+       change, copy one <li> to the TOP of the list and set its date and text.
+       No em dashes or en dashes anywhere (hub rule 1): use "to", commas, parens. -->
+  <div style="max-width:1200px;margin:20px auto 0;padding:0 20px;">
+    <div style="background:var(--brand-light,#f3effe);border:1px solid var(--brand,#7838E3);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--text);">
+      <div style="font-weight:800;color:var(--brand-dark,#3b0764);margin-bottom:6px;">✨ Recent updates</div>
+      <ul style="margin:0;padding-left:18px;line-height:1.65;">
+        <li><b>19 Oct 2026</b> &nbsp;Platform markups updated: Airbnb 25.5% to 28.0%, Booking.com 23.9% to 25.0%, VRBO 20.2% to 21.0%.</li>
+        <li><b>19 Oct 2026</b> &nbsp;Charge Amendment Fee can now be unticked, with a supervisor confirmation prompt.</li>
+      </ul>
+    </div>
+  </div>
+
   <div style="max-width:1200px;margin:28px auto;padding:0 20px 40px;">
-  
+
     <!-- ROW 1: Platform -->
     <div class="card" id="adj_platformCard" style="margin-bottom:16px;">
       <div class="card-header">
@@ -6085,7 +6071,7 @@ evRefresh();
 // every tool and opens Home.
 document.addEventListener('DOMContentLoaded', function(){
   if (!document.documentElement.classList.contains('embedded')) return;
-  var TOOLS = ['cancellation', 'quote', 'adjustment', 'weather', 'eviction', 'updates'];
+  var TOOLS = ['cancellation', 'quote', 'adjustment', 'weather', 'eviction'];
   var WITH_TUTORIAL = ['cancellation', 'quote', 'adjustment'];
   var tool = new URLSearchParams(location.search).get('tool');
   if (TOOLS.indexOf(tool) < 0) tool = 'cancellation';
