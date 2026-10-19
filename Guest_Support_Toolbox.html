@@ -829,10 +829,49 @@ input[type="date"].qc-select { position: relative; }
     <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 11-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z" clip-rule="evenodd"></path></svg>
     Eviction & Warning Guide
   </button>
+  <button class="tool-nav-btn" onclick="switchTool(&#39;updates&#39;, this)">
+    <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>
+    What's New
+  </button>
   <button id="globalTutorialBtn" onclick="triggerTutorial()" style="margin-left: auto; display: flex; align-items: center; gap: 7px; padding: 8px 16px; background: rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.15s; white-space: nowrap;" onmouseover="this.style.background=&#39;rgba(255,255,255,0.2)&#39;" onmouseout="this.style.background=&#39;rgba(255,255,255,0.12)&#39;">
     <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
     How To Use This Tool
   </button>
+</div>
+
+<!-- ── WHAT'S NEW / UPDATES PANEL ──
+     A simple changelog, newest first. To log a new change, copy one
+     .upd-entry block, put it at the TOP of #upd-list, and set its date and text.
+     No em dashes or en dashes anywhere (hub rule 1): use "to", commas or arrows. -->
+<div class="tool-panel" id="tool-updates">
+  <div style="background:linear-gradient(135deg,#5b21b6,#4c1d95);border-radius:0;padding:20px 28px;margin-bottom:20px;color:#fff;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+    <div>
+      <div style="font-size:17px;font-weight:800;margin-bottom:6px;letter-spacing:-0.02em;">✨ What's New</div>
+      <div style="font-size:13px;opacity:0.85;line-height:1.6;">Changes to these tools, newest first. Check here after an update to see what changed and when.</div>
+    </div>
+  </div>
+  <div style="max-width:820px;margin:28px auto;padding:0 20px 48px;">
+    <div id="upd-list" style="display:flex;flex-direction:column;gap:14px;">
+
+      <!-- upd-entry -->
+      <div class="upd-entry card" style="padding:0;overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--brand-light);">
+          <span style="font-size:12px;font-weight:800;color:#fff;background:var(--brand);border-radius:999px;padding:4px 12px;white-space:nowrap;">19 Oct 2026</span>
+          <span style="font-size:14px;font-weight:800;color:var(--text);">Platform markups updated</span>
+        </div>
+        <div style="padding:14px 18px;font-size:13px;line-height:1.65;color:var(--text);">
+          Finance set new Supercontrol markups to offset losses on the old rates. Applies to the Booking Quote Tool and the Date Change Calculator.
+          <ul style="margin:10px 0 0;padding-left:20px;">
+            <li>Airbnb: 25.5% to 28.0%</li>
+            <li>Booking.com: 23.9% to 25.0%</li>
+            <li>VRBO: 20.2% to 21.0%</li>
+          </ul>
+        </div>
+      </div>
+      <!-- /upd-entry -->
+
+    </div>
+  </div>
 </div>
 
 <!-- ── HOME PANEL ── -->
@@ -3671,9 +3710,13 @@ function qcPlatformRadioChanged() {
     const af=elA('chargeAmendFee2'), nbA=elA('nbAmend');
     if(af){
       af.disabled=!direct;
-      // Auto-check when Bachcare Direct, uncheck and grey out for other platforms
-      if(direct){ af.checked=true; }
+      // Default ON when Bachcare Direct, but only when the channel first becomes
+      // Direct, not on every recompute: otherwise unticking it is undone the
+      // instant anything recalculates. For other platforms it is always off.
+      const was = af.dataset.lastDirect === '1';
+      if(direct){ if(!was) af.checked=true; }
       else { af.checked=false; }
+      af.dataset.lastDirect = direct ? '1' : '0';
       elA('amendFeeLabel')?.classList.toggle('disabled-soft',!direct);
       // Grey out the label visually for non-Bachcare platforms
       if(elA('amendFeeLabel')) elA('amendFeeLabel').style.opacity = direct ? '1' : '0.4';
@@ -3972,9 +4015,21 @@ function qcPlatformRadioChanged() {
   // Init
   (function adjInit(){
     ['origStart','origEnd','newStart','newEnd'].forEach(id=>{ const el=elA(id); if(el) el.addEventListener('change',()=>compute(true)); });
-    ['ownerGSTRate','bookingFeeRate','amendFeeEach','linen1','clean1','rent1','fee1','addInfo1','addAmt1','otaTotal1','linen2','clean2','addInfo2','addAmt2','propIdOld','chargeAmendFee2','mkAirbnb','mkBcom','mkVrbo'].forEach(id=>{
+    ['ownerGSTRate','bookingFeeRate','amendFeeEach','linen1','clean1','rent1','fee1','addInfo1','addAmt1','otaTotal1','linen2','clean2','addInfo2','addAmt2','propIdOld','mkAirbnb','mkBcom','mkVrbo'].forEach(id=>{
       const n=elA(id); if(n){n.addEventListener('input',()=>compute(false));n.addEventListener('change',()=>compute(false));}
     });
+    // The amendment fee can be removed, but only with a supervisor's say-so, so
+    // unticking it asks for confirmation. Cancelling puts the tick back.
+    var _amf=elA('chargeAmendFee2');
+    if(_amf){
+      _amf.addEventListener('change',function(){
+        if(!_amf.checked && !_amf.disabled){
+          var ok=window.confirm('Removing the amendment fee needs a supervisor to confirm it first.\n\nOnly remove it if a supervisor has approved. Remove the $28.75 amendment fee?');
+          if(!ok){ _amf.checked=true; }
+        }
+        compute(false);
+      });
+    }
     var _rb=elA('resetBtn'); if(_rb) _rb.addEventListener('click',adjResetCalc);
     elA('copyCOD').addEventListener('click',()=>adjRobustCopy('htmlCOD'));
     elA('copyGuestEmail').addEventListener('click',()=>adjRobustCopy('guestEmail'));
@@ -6030,7 +6085,7 @@ evRefresh();
 // every tool and opens Home.
 document.addEventListener('DOMContentLoaded', function(){
   if (!document.documentElement.classList.contains('embedded')) return;
-  var TOOLS = ['cancellation', 'quote', 'adjustment', 'weather', 'eviction'];
+  var TOOLS = ['cancellation', 'quote', 'adjustment', 'weather', 'eviction', 'updates'];
   var WITH_TUTORIAL = ['cancellation', 'quote', 'adjustment'];
   var tool = new URLSearchParams(location.search).get('tool');
   if (TOOLS.indexOf(tool) < 0) tool = 'cancellation';
